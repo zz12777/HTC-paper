@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KG-HTC：將知識圖譜融入大語言模型以實現零樣本層級文字分類｜中文導讀</title>
+<style>
+  :root{
+    --bg: #f7f5f0;
+    --panel: #ffffff;
+    --ink: #1f2a24;
+    --ink-soft: #4a564e;
+    --accent: #2f6f52;
+    --accent-soft: #dfeee4;
+    --accent-line: #9fc7ad;
+    --gold: #b08a3e;
+    --line: #e2ddd0;
+    --code-bg: #f1efe6;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Serif TC", "Songti TC", "PMingLiU", "Georgia", serif;
+    line-height: 1.85;
+    font-size: 16.5px;
+  }
+  .layout{
+    display:flex;
+    min-height:100vh;
+  }
+  /* Sidebar */
+  nav.toc{
+    position: sticky;
+    top:0;
+    align-self:flex-start;
+    height:100vh;
+    width: 290px;
+    flex-shrink:0;
+    background: linear-gradient(180deg,#1f2a24,#26332b 70%,#1f2a24);
+    color: #e8ede9;
+    padding: 28px 0 20px 0;
+    overflow-y:auto;
+    border-right: 1px solid #14201a;
+  }
+  nav.toc .brand{
+    padding: 0 22px 18px 22px;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    margin-bottom: 10px;
+  }
+  nav.toc .brand .tag{
+    display:inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .12em;
+    color: var(--accent-line);
+    border:1px solid var(--accent-line);
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+  }
+  nav.toc .brand h1{
+    font-size: 17px;
+    line-height:1.5;
+    margin: 0 0 6px 0;
+    font-weight: 700;
+    color: #fff;
+  }
+  nav.toc .brand p{
+    font-size: 12.5px;
+    color: #b7c3ba;
+    margin:0;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+  }
+  nav.toc ul{
+    list-style:none;
+    margin:0;
+    padding: 6px 10px 10px 10px;
+  }
+  nav.toc li{margin: 1px 0;}
+  nav.toc a{
+    display:block;
+    color: #cdd8d0;
+    text-decoration:none;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 13.5px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: background .15s, color .15s, transform .15s;
+    border-left: 2px solid transparent;
+  }
+  nav.toc a.level2{
+    font-size: 12.5px;
+    padding: 6px 12px 6px 24px;
+    color: #a7b6ab;
+  }
+  nav.toc a:hover{
+    background: rgba(255,255,255,.06);
+    color: #fff;
+  }
+  nav.toc a.active{
+    background: var(--accent);
+    color: #fff;
+    border-left: 2px solid #fff;
+    font-weight: 600;
+  }
+  nav.toc a.level2.active{
+    background: rgba(255,255,255,.14);
+    color: #fff;
+    border-left: 2px solid var(--accent-line);
+  }
+  nav.toc .section-num{
+    font-family: var(--mono);
+    color: var(--accent-line);
+    margin-right: 6px;
+  }
+
+  /* Main content */
+  main{
+    flex: 1;
+    min-width: 0;
+    padding: 48px 56px 120px 56px;
+    max-width: 900px;
+  }
+  .paper-header{
+    margin-bottom: 40px;
+    padding-bottom: 30px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .paper-header .orig-tag{
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    letter-spacing:.05em;
+    margin-bottom: 14px;
+  }
+  .paper-header h1.zh{
+    font-size: 30px;
+    line-height:1.45;
+    margin: 0 0 8px 0;
+    color: var(--ink);
+    font-weight: 800;
+  }
+  .paper-header h2.en{
+    font-size: 16px;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--ink-soft);
+    margin: 0 0 20px 0;
+  }
+  .authors{
+    font-size: 14px;
+    color: var(--ink-soft);
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    line-height:1.7;
+  }
+  .authors .aff{font-size:12.5px; color:#7c8a80;}
+
+  section.chapter{
+    margin-bottom: 56px;
+    scroll-margin-top: 24px;
+  }
+  section.chapter h2{
+    font-size: 23px;
+    color: var(--accent);
+    border-left: 5px solid var(--accent);
+    padding-left: 14px;
+    margin: 0 0 22px 0;
+  }
+  section.chapter h3{
+    font-size: 18px;
+    color: var(--ink);
+    margin: 30px 0 14px 0;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed var(--line);
+  }
+  section.chapter h3 .en-inline{
+    font-weight: 400;
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 14px;
+  }
+  p{ margin: 0 0 16px 0; text-align: justify; }
+  strong.term{ color: var(--accent); font-weight:700; }
+
+  .abstract-box{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--gold);
+    border-radius: 6px;
+    padding: 22px 26px;
+    margin-bottom: 10px;
+  }
+  .abstract-box .label{
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--gold);
+    letter-spacing:.1em;
+    margin-bottom: 10px;
+  }
+
+  .note-box{
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-line);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 18px 0;
+    font-size: 14.5px;
+    color: #234a34;
+  }
+  .note-box .label{
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-weight:700;
+    font-size: 12.5px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  figure{
+    margin: 24px 0;
+    padding: 16px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  figure figcaption{
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-top: 10px;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    line-height:1.6;
+  }
+  figure figcaption b{color:var(--ink);}
+
+  table{
+    width:100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 14px;
+    background: var(--panel);
+  }
+  table caption{
+    caption-side: top;
+    text-align:left;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+  }
+  th, td{
+    border: 1px solid var(--line);
+    padding: 8px 10px;
+    text-align: center;
+  }
+  th{
+    background: var(--accent-soft);
+    color: #1f4531;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-weight:600;
+    font-size:13px;
+  }
+  td.rowlabel{ text-align:left; font-weight:600;}
+  tr.best td{ font-weight:700; color: var(--accent); }
+
+  .algo-box{
+    background: #24302a;
+    color: #dfe8e2;
+    border-radius: 8px;
+    padding: 18px 22px;
+    font-family: var(--mono);
+    font-size: 13.2px;
+    line-height: 1.75;
+    margin: 20px 0;
+    overflow-x:auto;
+  }
+  .algo-box .algo-title{
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    color: #9fd8bb;
+    font-weight:700;
+    margin-bottom: 10px;
+    font-size: 13.5px;
+  }
+  .algo-box .zh-hint{
+    color:#8fa79b;
+    font-family: "Noto Sans TC", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .prompt-box{
+    background: var(--code-bg);
+    border: 1px dashed #b8ab86;
+    border-radius: 6px;
+    padding: 14px 18px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: #4d3f22;
+    margin: 16px 0;
+    white-space: pre-wrap;
+    line-height:1.7;
+  }
+  .prompt-box .ptitle{
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-weight:700;
+    color:#8a6d24;
+    margin-bottom:8px;
+    font-size:12.5px;
+  }
+
+  ul.list, ol.list{
+    margin: 12px 0 16px 0;
+    padding-left: 22px;
+  }
+  ul.list li, ol.list li{
+    margin-bottom: 10px;
+    text-align:justify;
+  }
+
+  .divider{
+    height:1px;
+    background: var(--line);
+    margin: 46px 0;
+  }
+
+  .formula{
+    text-align:center;
+    font-family: "Cambria Math", "STIX Two Math", serif;
+    font-style: italic;
+    font-size: 16px;
+    margin: 18px 0;
+    color: var(--ink);
+    background: var(--panel);
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+  }
+
+  .refs{
+    font-size: 12.8px;
+    color: var(--ink-soft);
+    line-height: 1.9;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+  }
+  .refs .refnum{ color: var(--accent); font-weight:700; margin-right:4px; }
+
+  .back-top{
+    display:inline-block;
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    text-decoration:none;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    border:1px solid var(--line);
+    padding: 5px 12px;
+    border-radius: 999px;
+  }
+  .back-top:hover{ background: var(--accent-soft); color: var(--accent); }
+
+  @media (max-width: 880px){
+    nav.toc{ position: fixed; left:-300px; z-index:50; transition:left .2s; box-shadow: 4px 0 20px rgba(0,0,0,.3);}
+    nav.toc.open{ left:0; }
+    main{ padding: 24px 20px 100px 20px; }
+    .menu-btn{
+      position: fixed; top:14px; left:14px; z-index:60;
+      background: var(--accent); color:#fff; border:none;
+      width:42px; height:42px; border-radius:10px; font-size:18px;
+      cursor:pointer;
+    }
+  }
+  @media (min-width: 881px){ .menu-btn{ display:none; } }
+</style>
+</head>
+<body>
+
+<button class="menu-btn" id="menuBtn">☰</button>
+
+<div class="layout">
+  <nav class="toc" id="tocNav">
+    <div class="brand">
+      <span class="tag">中文導讀 · ECAI 2025</span>
+      <h1>KG-HTC：將知識圖譜融入大語言模型以實現零樣本層級文字分類</h1>
+      <p>arXiv:2505.05583 · 逐節對照翻譯</p>
+    </div>
+    <ul id="tocList">
+      <li><a href="#abstract" class="navlink"><span class="section-num">摘</span>摘要</a></li>
+      <li><a href="#s1" class="navlink"><span class="section-num">1</span>引言</a></li>
+      <li><a href="#s2" class="navlink"><span class="section-num">2</span>方法</a></li>
+      <li><a href="#s2-1" class="navlink level2">2.1 問題定義</a></li>
+      <li><a href="#s2-2" class="navlink level2">2.2 系統架構</a></li>
+      <li><a href="#s2-3" class="navlink level2">2.3 層級標籤的儲存</a></li>
+      <li><a href="#s2-4" class="navlink level2">2.4 子圖檢索</a></li>
+      <li><a href="#s2-5" class="navlink level2">2.5 子圖轉提示詞</a></li>
+      <li><a href="#s2-6" class="navlink level2">2.6 各層級分類</a></li>
+      <li><a href="#s3" class="navlink"><span class="section-num">3</span>實驗</a></li>
+      <li><a href="#s3-1" class="navlink level2">3.1 資料集</a></li>
+      <li><a href="#s3-2" class="navlink level2">3.2 評估指標</a></li>
+      <li><a href="#s3-3" class="navlink level2">3.3 實驗設定</a></li>
+      <li><a href="#s4" class="navlink"><span class="section-num">4</span>結果</a></li>
+      <li><a href="#s4-1" class="navlink level2">4.1 主要結果</a></li>
+      <li><a href="#s4-2" class="navlink level2">4.2 錯誤分析</a></li>
+      <li><a href="#s4-3" class="navlink level2">4.3 消融實驗</a></li>
+      <li><a href="#s5" class="navlink"><span class="section-num">5</span>相關工作</a></li>
+      <li><a href="#s6" class="navlink"><span class="section-num">6</span>結論</a></li>
+      <li><a href="#s7" class="navlink"><span class="section-num">7</span>侷限性</a></li>
+      <li><a href="#ethics" class="navlink"><span class="section-num">·</span>倫理宣告與致謝</a></li>
+      <li><a href="#refs" class="navlink"><span class="section-num">·</span>參考文獻</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="paper-header">
+      <div class="orig-tag">原文標題 ORIGINAL TITLE</div>
+      <h1 class="zh">KG-HTC：將知識圖譜融入大語言模型，實現有效的零樣本層級文字分類</h1>
+      <h2 class="en">KG-HTC: Integrating Knowledge Graphs into LLMs for Effective Zero-shot Hierarchical Text Classification</h2>
+      <div class="authors">
+        Qianbo Zang<sup>a,*</sup>、Christophe Zgrzendek<sup>b</sup>、Igor Tchappi<sup>a</sup>、Afshin Khadangi<sup>a</sup>、Johannes Sedlmeir<sup>c</sup><br>
+        <span class="aff">a 盧森堡大學 安全、可靠與信任跨學科中心（SnT）　b Enovos Luxembourg S.A.　c 明斯特大學</span>
+      </div>
+    </div>
+
+    <!-- 摘要 -->
+    <section class="chapter" id="abstract">
+      <h2>摘要</h2>
+      <div class="abstract-box">
+        <div class="label">ABSTRACT</div>
+        <p><strong class="term">層級文字分類（Hierarchical Text Classification, HTC）</strong>是指將文件分配到按照分類體系（taxonomy）組織起來的標籤中。以往關於 HTC 的研究大多聚焦於監督式方法。然而在真實場景中，由於缺乏標註資料，採用監督式 HTC 往往十分困難；此外，HTC 還常常面臨標籤空間巨大、長尾分佈嚴重等問題。</p>
+        <p>本文提出 <strong class="term">KG-HTC</strong>（Knowledge Graphs for zero-shot Hierarchical Text Classification），旨在透過將知識圖譜與大語言模型（LLM）相結合，在分類過程中提供結構化的語義上下文，從而在實際應用中解決上述 HTC 難題。我們的方法採用檢索增強生成（Retrieval-Augmented Generation, RAG）思路，從與輸入文字相關的知識圖譜中檢索出相關子圖。KG-HTC 能夠幫助 LLM 理解不同層級標籤的語義。</p>
+        <p>我們在三個開源 HTC 資料集——WoS、DBpedia 與 Amazon——上評估了 KG-HTC。實驗結果表明，在嚴格零樣本設定下，KG-HTC 顯著優於三種基線方法，尤其是在層級更深的分類任務上取得了大幅提升。這一評估證明了將結構化知識融入 LLM 有助於解決 HTC 中大規模標籤空間與長尾標籤分佈的挑戰。</p>
+        <p>程式碼已開源：<span style="font-family:var(--mono); font-size:13px;">github.com/QianboZang/KG-HTC</span></p>
+      </div>
+    </section>
+
+    <!-- 1 引言 -->
+    <section class="chapter" id="s1">
+      <h2>1　引言</h2>
+      <p>文字分類是自然語言處理中的一項基礎任務，其目標是把給定文字分配到預先定義的類別中。<strong class="term">層級文字分類（HTC）</strong>是文字分類的一個特殊而日益重要的擴充套件：標籤不再是扁平的，而是被組織在一個多層級的分類體系（taxonomy）中。HTC 需要把文字資料歸入具有父子關係的多層標籤體系，不同層級的標籤構成一個層級化的分類樹。圖 1 展示了來自 Amazon 商品評論資料集的一個例子：分類體系的根節點是資料集名稱，一條評論需要被依次分類到多個層級的標籤上。圖中示例文字可依序分類為「health personal care（保健個護）」「household supplies（家居用品）」「dishwashing（洗碗用品）」。HTC 已被成功應用於多個領域，包括電商商品分類、電子參與平臺的層級主題建模，以及細粒度的文獻管理等。</p>
+
+      <figure>
+        <figcaption><b>圖 1.</b> 來自 Amazon 商品評論資料集的 HTC 示例。左側為一條商品評論文字；右側展示從 Root（根節點）→ Level 1 → Level 2 → Level 3 逐層預測的分類路徑：Amazon Product Review → Health Personal Care → Household Supplies → Dishwashing。</figcaption>
+      </figure>
+
+      <p>然而在真實應用中，HTC 往往面臨以下三項重大挑戰中的一項或多項：</p>
+      <ol class="list">
+        <li><strong class="term">標註資料匱乏。</strong>在多個層級上人工標註自定義資料的成本極高，這一問題在如零售系統這類分類體系隨新產品線不斷演化的動態環境中尤為嚴重。</li>
+        <li><strong class="term">標籤空間龐大。</strong>實際的分類體系普遍擁有大規模標籤空間：例如 Amazon 商品評論資料集的分類體系包含超過 500 個葉子類別。</li>
+        <li><strong class="term">長尾分佈嚴重。</strong>真實資料集中少數高頻類別佔據了絕大多數樣本，而大部分類別樣本稀少。例如，我們的統計分析顯示，Amazon 資料集第三層級中最高頻的 15% 類別佔據了總樣本量的 80%，而排名後 50% 的類別合計僅佔樣本量的 6%。</li>
+      </ol>
+
+      <p>基於以上三點原因，與扁平文字分類不同，標準的監督式方法在許多行業場景中並不適用。因此，研究者們逐漸轉向零樣本學習方法來解決 HTC 問題。近期研究大致可歸納為三條主要技術路線：</p>
+      <ul class="list">
+        <li><strong class="term">路線一：基於提示詞的上下文學習。</strong>該方法透過精心設計的提示詞，利用預訓練 LLM 的上下文學習能力完成分類。Halder 等人的方法將任意文字分類任務轉化為通用的二元分類問題，讓 LLM 對標籤空間中的每個標籤輸出「真/假」。但由於 HTC 的標籤空間極大，該方法完成一次分類往往需要多輪迭代。</li>
+        <li><strong class="term">路線二：基於嵌入模型的距離度量。</strong>該方法利用由預訓練 LLM 轉化而來的嵌入模型，計算輸入文字與標籤之間的距離進行分類。Bongiovanni 等人提出 Z-STC，將相似度分數沿層級結構向上傳播，以此最佳化上層標籤的分類結果。</li>
+        <li><strong class="term">路線三：嵌入模型與 LLM 分類相結合。</strong>Paletto 等人提出 HiLA，利用 LLM 在現有分類體系底部生成新的標籤層，再沿用 Z-STC 完成分類。</li>
+      </ul>
+      <p>然而，Bongiovanni 等人與 Paletto 等人的方法在層級較深的標籤上分類效果均不理想。</p>
+
+      <p>為此，本文提出 <strong class="term">KG-HTC</strong>——一種透過將知識圖譜（KG）融入 LLM 來增強 HTC 效果的新方法，重點面向<strong class="term">嚴格零樣本學習（strict zero-shot learning）</strong>設定。由於有向無環圖（DAG）天然適合表示 HTC 中標籤的層級結構，將 LLM 與知識圖譜相結合對這一任務極具潛力。具體而言，我們將分類體系表示為基於 DAG 的知識圖譜，並計算文字與各層級標籤嵌入之間的餘弦相似度。透過設定預先確定的閾值，在每個層級篩選出與輸入文字語義高度相關的候選標籤。隨後，系統依據這些候選標籤，從完整的標籤知識圖譜中動態檢索出與該文字最相關的子圖。對於檢索到的子圖，我們採用一種「向上傳播」演算法，系統性地列舉從葉子節點到根節點的所有可能路徑，每條路徑代表一條完整的、經過反轉的層級標籤序列。這些結構化序列隨後被拼接為提示詞，輸入 LLM 完成零樣本分類任務。</p>
+
+      <p>我們在三個公開資料集上評估了該方法，均取得了新的最優結果。在不依賴任何標註資料的前提下，KG-HTC 顯著增強了模型應對長尾與稀疏標籤問題的能力。與 Bongiovanni 等人及 Paletto 等人的方法相比，隨著標籤層級加深，KG-HTC 的效能下降幅度明顯更小。</p>
+
+      <div class="note-box">
+        <div class="label">本文三大貢獻</div>
+        <ol class="list" style="margin-bottom:0;">
+          <li>提出 KG-HTC 方法，在嚴格零樣本設定下將知識圖譜融入 LLM 以完成 HTC 任務；</li>
+          <li>實現了一套新穎的流程：基於餘弦相似度從標籤分類體系中語義化地檢索相關子圖，並將其轉化為結構化提示詞；</li>
+          <li>在三個開源 HTC 資料集上對 KG-HTC 進行深入評估，並與此前的最優方法進行對比。</li>
+        </ol>
+      </div>
+
+      <p>本文餘下部分安排如下：第 2 節介紹 KG-HTC 方法；第 3 節描述實驗設定；第 4 節分析實驗結果；第 5 節綜述相關工作；第 6 節總結全文。</p>
+    </section>
+
+    <!-- 2 方法 -->
+    <section class="chapter" id="s2">
+      <h2>2　方法</h2>
+
+      <h3 id="s2-1">2.1　問題定義 <span class="en-inline">Problem Identification</span></h3>
+      <p>基於 LLM 的零樣本文字分類可被形式化為一個<strong class="term">生成式分類任務</strong>。給定輸入文字序列 x = (x₁, x₂, …, xₙ)（n 為文字長度），LLM 採用 Top-p 取樣策略生成輸出文字 y ～ LLM(x)。在分類場景下，標籤集合記為 C，生成文字 y 隨後被對映為預測標籤 ĉ ∈ C。</p>
+
+      <p>我們沿用 Paletto 等人建立的數學框架，關鍵符號彙總於表 1。在層級文字分類中，標籤空間 C 中的全部標籤被組織為一個層級分類體系 C = (C¹, C², …, Cᴸ)，其中 L 為分類體系的最大深度（即層級數）。為形式化描述標籤間的依賴關係，我們採用 [25] 提出的上下箭頭記號：↑cᵢˡ 表示 cᵢˡ 在層級結構中的父節點，↓cᵢˡ 表示 cᵢˡ 的子節點集合。對所有 l > 1，每個標籤 cᵢˡ ∈ Cˡ 都必須滿足結構約束 ↑cᵢˡ ∈ Cˡ⁻¹。層級文字分類任務要求 LLM 生成一組輸出 (y¹, y², …, yᴸ)，對應分類體系中各層級的預測標籤 (ĉ¹, ĉ², …, ĉᴸ)，其中 ĉˡ ∈ Cˡ。</p>
+
+      <table>
+        <caption>表 1. 符號說明</caption>
+        <thead><tr><th>符號</th><th>含義</th></tr></thead>
+        <tbody>
+          <tr><td>l</td><td>標籤分類體系的某一層級，l ∈ (1, …, L)</td></tr>
+          <tr><td>Cˡ</td><td>第 l 層的全部標籤集合</td></tr>
+          <tr><td>cᵢˡ</td><td>第 l 層的一個標籤</td></tr>
+          <tr><td>↑cᵢˡ</td><td>cᵢˡ 的父標籤</td></tr>
+          <tr><td>↓cᵢˡ</td><td>cᵢˡ 的子標籤集合</td></tr>
+          <tr><td>Ψ(x)</td><td>文字 x 的向量嵌入</td></tr>
+          <tr><td>S꜀(A, B)</td><td>兩個嵌入 A、B 的餘弦相似度</td></tr>
+          <tr><td>Qˡ</td><td>在第 l 層，透過閾值 τₗ 由 S꜀ 檢索得到的全部候選標籤</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="s2-2">2.2　系統架構 <span class="en-inline">System Architecture</span></h3>
+      <p>圖 2 展示了 KG-HTC 的完整流程。首先，我們將全部標籤分別儲存到一個圖資料庫和一個向量資料庫中。給定輸入文字，我們依次在向量資料庫中檢索出每個層級 l 上相似度最高的候選標籤集合 Qˡ，並透過檢查相鄰層級候選標籤之間的父子關係，從圖資料庫中檢索出一個有效子圖。隨後，我們將檢索到的子圖中的一組路徑轉化為結構化提示詞，與分類提示詞模板拼接。最後，我們藉助上下文學習（In-context Learning）完成零樣本文字分類。</p>
+
+      <figure>
+        <figcaption><b>圖 2.</b> KG-HTC 整體流程圖。分為四個階段：<br>
+        （2.3）將層級標籤存入向量資料庫（VectorDB）與圖資料庫（GraphDB）；<br>
+        （2.4）檢索語義相似的標籤並構建知識圖譜子圖；<br>
+        （2.5）將子圖轉化為提示詞（提取「層級標籤路徑」）；<br>
+        （2.6）針對第 l 層進行分類：將子圖提示詞、候選類別與輸入評論文字拼接為提示詞模板，輸入 LLM，生成該層級的預測結果 yˡ。</figcaption>
+      </figure>
+
+      <h3 id="s2-3">2.3　層級標籤的儲存 <span class="en-inline">Storage of Hierarchical Labels</span></h3>
+      <p>第一步，我們分別將全部標籤存入一個圖資料庫和一個向量資料庫。在層級文字分類中，標籤的分類體系可被視為一個 DAG 知識圖譜，多層標籤之間透過層級隸屬關係相互連線。透過顯式定義各層標籤間的關係路徑，LLM 能夠建立起對各個標籤及其在層級結構中概念邊界的結構化理解。</p>
+      <p>例如，圖 3 中的輸入既可能被分類為「dishwashing（洗碗）」，也可能被分類為「cleansers（清潔劑）」。但在 Amazon 商品評論資料集的分類體系中，「cleansers」是「bath body（沐浴身體護理）」的子節點，也就是說「cleansers」的概念邊界屬於「human cleansers（人體清潔用品）」範疇，因此 LLM 應將該輸入正確分類為「dishwashing」。這種基於圖結構的知識表示為 LLM 帶來雙重優勢：一方面為文字處理任務建立了顯式的語義導航路徑，另一方面也構建了拓撲約束，有助於在零樣本場景中透過改善語義消歧來顯著提升分類準確率。</p>
+
+      <figure>
+        <figcaption><b>圖 3.</b> 由 Amazon 商品評論資料集多層分類體系構建出的知識圖譜（樹）視覺化示意圖。紅色節點代表第一層級標籤；綠色節點代表透過父子關係相互連線的第二層級子類別；黃色節點對應第三層級中細粒度的葉子類別（圖中大量以「contains（包含）」標註的邊表示父子層級間的隸屬關係）。</figcaption>
+      </figure>
+
+      <h3 id="s2-4">2.4　子圖檢索 <span class="en-inline">Subgraph Retrieval</span></h3>
+      <p>已有實證研究表明，檢索增強生成（RAG）框架在開放式問答任務中具有顯著優勢。HTC 中的一項核心挑戰正是<strong class="term">標籤空間龐大</strong>——分類體系往往涵蓋海量類別。透過在向量資料庫中依據相似度動態檢索相關文件並結合上下文學習，RAG 能有效提升生成結果的事實準確性。</p>
+      <p>Li 等人的研究表明，LLM 在處理長上下文以及大規模標籤空間的分類任務時存在明顯侷限。若直接將完整知識圖譜編碼輸入 LLM，可能因資訊過載或注意力稀釋而導致效能下降。為緩解這一問題，我們提出一種 RAG 增強框架：根據輸入文字動態地從完整知識圖譜中檢索出語義相關的子圖（子樹）成分。這些檢索到的子圖隨後被結構化為上下文提示詞，使分類器能夠優先關注關鍵的層級依賴關係，同時抑制無關噪聲（詳見 2.5 節）。</p>
+
+      <p>具體而言，對每個層級 l，我們計算輸入文字嵌入與該層級全部標籤嵌入之間的餘弦相似度距離：</p>
+      <div class="formula">d꜀(x, cᵢˡ) = 1 − S꜀( Ψ(x), Ψ(cᵢˡ) )　　……（式 1）</div>
+      <p>其中 Ψ: X → R<sup>d</sup> 為嵌入函式，S꜀(·,·) 表示餘弦相似度運算元。隨後我們在第 l 層檢索出相似度最高的候選標籤集合：</p>
+      <div class="formula">Qˡ = { cᵢˡ ∣ d꜀(x, cᵢˡ) ≤ τₗ }　　……（式 2）</div>
+      <p>其中 τₗ 為該層級的相似度閾值。</p>
+      <p>為保證層級一致性，我們進一步透過檢查相鄰層級候選標籤之間的父子關係來校驗跨層依賴：某個候選標籤 cᵢˡ ∈ Qˡ，僅當其父標籤 ↑cᵢˡ 也屬於 Qˡ⁻¹ 時才成立。演算法 1 給出了以輸入文字 x 為查詢、檢索子圖的完整流程。</p>
+
+      <div class="algo-box">
+        <div class="algo-title">演算法 1：子圖檢索（Subgraph Retrieval）</div>
+        <span class="zh-hint">輸入：</span>輸入文字 x，標籤集合 {C¹, C², …, Cᴸ}<br>
+        <span class="zh-hint">輸出：</span>檢索得到的子圖 G<br><br>
+        初始化空圖結構 G ← ∅；<br>
+        計算輸入文字的嵌入 Ψ(x)；<br>
+        <b>for</b> l ← 1 到 L <b>do</b><br>
+        &nbsp;&nbsp;計算第 l 層全部標籤的嵌入 Ψ(cᵢˡ)；<br>
+        &nbsp;&nbsp;依式(1)計算 d꜀；<br>
+        &nbsp;&nbsp;依式(2)檢索候選集合 Qˡ；<br>
+        <b>end</b><br>
+        <b>for</b> l ← 2 到 L <b>do</b><br>
+        &nbsp;&nbsp;<b>for</b> 每個 cᵢˡ ∈ Qˡ <b>do</b><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<b>if</b> ↑cᵢˡ ∈ Qˡ⁻¹ <b>then</b><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;將節點 ↑cᵢˡ 與 cᵢˡ 加入 G；<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;將邊 (↑cᵢˡ, cᵢˡ) 加入 G；<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<b>end</b><br>
+        &nbsp;&nbsp;<b>end</b><br>
+        <b>end</b><br>
+        刪除 G 中重複的邊 (↑cᵢˡ, cᵢˡ)；<br>
+        <b>return</b> G；
+      </div>
+
+      <h3 id="s2-5">2.5　子圖轉提示詞 <span class="en-inline">Transformation from Subgraph to Prompt</span></h3>
+      <p>對於輸入文字 x，我們首先透過演算法 1 檢索得到子圖 G。為有效地將知識圖譜注入 LLM，我們採用一種策略：透過父子邊連線，將圖結構轉化為一組路徑。具體來說，每個子圖都會被序列化為一組從根到葉的層級路徑。這種基於「鏈」的表示方式在保持結構一致性的同時，也相容了 LLM 的序列化輸入格式。對於 HTC 任務而言，路徑的長度等於分類體系的深度 L。</p>
+      <p>LLM 無法直接理解圖結構資訊，因此我們需要將子圖轉化為提示詞——一種可行方式是將圖中的路徑作為提示詞輸入，供模型進行圖理解與推理。子圖中有效的層級標籤路徑會透過「向上傳播」被保留為上下文提示詞。「向上傳播」演算法本質上是一個迴圈遍歷演算法，系統性地探索從層級結構中的終端葉子節點到根節點的全部可能路徑：從最終層級中任意一個初始節點 cᵢᴸ ∈ Cᴸ 出發，演算法 2 會逐步訪問其父節點直至到達根節點，然後回溯以探索其他分支。這種窮舉式遍歷保證了對全部有效路徑組合的完整列舉。得到全部路徑組合後，每條路徑 Pᵢ 中元素的順序會被反轉，以確保方向一致性（從第一層到第 L 層），最終輸出為完整路徑集合 P = {P₁, P₂, …}。每條路徑 Pᵢ = (pᵢ¹ → pᵢ² → … → pᵢᴸ) 代表一條相互連線的節點序列，其中 pᵢˡ ∈ G 且 pᵢˡ ∈ Cˡ。</p>
+
+      <div class="algo-box">
+        <div class="algo-title">演算法 2：由子圖生成層級標籤路徑（From Subgraph to Hierarchical Label Paths）</div>
+        <span class="zh-hint">輸入：</span>輸入文字 x，由演算法 1 檢索得到的子圖 G<br>
+        <span class="zh-hint">輸出：</span>層級路徑集合 {P₁, P₂, …}<br><br>
+        初始化路徑集合 P ← ∅；<br>
+        <b>for</b> 每個葉子節點 cᵢᴸ ∈ Cᴸ <b>do</b><br>
+        &nbsp;&nbsp;初始化棧結構 S ← {[cᵢᴸ]}；<br>
+        &nbsp;&nbsp;<b>for</b> l ← L 到 1 <b>do</b><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;將 cᵢᴸ 的父節點 ↑cᵢˡ ∈ Cˡ⁻¹ 壓入棧 S；<br>
+        &nbsp;&nbsp;<b>end</b><br>
+        &nbsp;&nbsp;將 S 加入 P；<br>
+        <b>end</b><br>
+        <b>return</b> P；
+      </div>
+
+      <p>我們可以藉助「→」連線相鄰層級的節點，把檢索到的子圖中的一組路徑轉化為結構化提示詞。這種結構化上下文能夠幫助 LLM 在分類過程中識別層級約束關係。提示詞 1 給出了 Amazon 商品評論資料集上這種多層標籤路徑提示詞的示例。</p>
+
+      <div class="prompt-box">
+        <div class="ptitle">提示詞 1：Amazon 商品評論資料集的檢索子圖示例</div>pet supplies -&gt; cats -&gt; cat flaps
+pet supplies -&gt; dogs -&gt; doors
+pet supplies -&gt; cats -&gt; collars
+pet supplies -&gt; cats -&gt; litter housebreaking
+baby products -&gt; safety -&gt; gates doorways
+baby products -&gt; safety -&gt; harnesses leashes
+baby products -&gt; safety -&gt; bathroom safety
+pet supplies -&gt; cats -&gt; feeding watering supplies
+baby products -&gt; safety -&gt; cabinet locks straps
+toys games -&gt; stuffed animals plush -&gt; plush puppets
+pet supplies -&gt; dogs -&gt; houses
+baby products -&gt; safety -&gt; sleep positioners
+baby products -&gt; potty training -&gt; step stools
+toys games -&gt; stuffed animals plush -&gt; plush backpacks purses
+pet supplies -&gt; cats -&gt; carriers strollers
+baby products -&gt; gear -&gt; swings
+      </div>
+      <p style="font-size:13.5px; color:var(--ink-soft);">（寵物用品→貓→貓門；嬰兒用品→安全防護→門欄；玩具遊戲→毛絨玩具→毛絨手偶……每一行都是從第一層到第三層的一條完整標籤路徑。）</p>
+
+      <h3 id="s2-6">2.6　各層級分類 <span class="en-inline">Classification of Each Level</span></h3>
+      <p>本方法透過將從檢索子圖中提取的結構化上下文與分類提示詞模板拼接，充分利用上下文學習與提示工程。拼接後的提示詞隨後輸入 LLM 進行推理。提示詞 2 給出了 Amazon 商品評論資料集上分類别範本的示例。</p>
+
+      <div class="prompt-box">
+        <div class="ptitle">提示詞 2：Amazon 商品評論資料集分類别範本</div>Classify the review of a product into one of the following categories:
+{category_text}. You must directly output one of the categories and do
+not add ", ', and *.
+
+Here is the partial knowledge graph:
+"""
+{knowledge}
+"""
+      </div>
+      <p style="font-size:13.5px; color:var(--ink-soft);">（請將該商品評論分類到以下類別之一：{候選類別}。必須直接輸出其中一個類別名稱，且不得新增引號或星號。這裡是部分知識圖譜：{檢索到的知識}。）</p>
+
+      <p>對於 HTC 任務，我們採用<strong class="term">逐層分類策略</strong>：模型先預測第一層標籤，再依次對更深層級的標籤進行分類，直至到達最後一層。HTC 的一大挑戰在於候選標籤數量龐大——若在單條提示詞中提供全部可能的標籤，往往會導致效能下降。不過，由於評估資料集中第一層標籤數量通常較少（均不超過 10 個），我們可以直接將全部第一層標籤納入提示詞，從而簡化推理流程並提升分類效果。</p>
+      <p>對於第一層之後的分類，模型會使用上一層級的預測結果作為當前層級的約束條件。例如第 l 層的預測標籤為 yˡ，則第 l+1 層的候選標籤集合主要由上一預測結果 yˡ 的子類別 ↓yˡ 構成，並輔以透過式(2)檢索出的額外候選標籤 Qˡ⁺¹。這一設計有助於緩解上一層預測錯誤帶來的影響，提升整體分類流程的魯棒性與準確率。演算法 3 展示了 KG-HTC 的完整流程。</p>
+
+      <div class="algo-box">
+        <div class="algo-title">演算法 3：KG-HTC 完整流程</div>
+        <span class="zh-hint">輸入：</span>輸入文字 x，提示詞模板 P<br>
+        <span class="zh-hint">輸出：</span>預測的層級標籤 y = (y¹, y², …, yᴸ)<br><br>
+        初始化預測標籤集合 y ← ∅；<br>
+        透過演算法 1 檢索子圖 G；<br>
+        將 G 轉化為層級標籤路徑 P；<br>
+        <b>for</b> 層級 l ← 1 到 L <b>do</b><br>
+        &nbsp;&nbsp;<b>if</b> l ← 1 <b>then</b><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;prompt ← concat(x, P, C¹)　（依提示詞 2 拼接）；<br>
+        &nbsp;&nbsp;<b>else</b><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;依式(2)檢索候選集合 Qˡ；<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;prompt ← concat(x, P, Qˡ ∪ ↓yˡ⁻¹)　（依提示詞 2 拼接）；<br>
+        &nbsp;&nbsp;<b>end</b><br>
+        &nbsp;&nbsp;yˡ ← LLM(prompt)；<br>
+        &nbsp;&nbsp;將 yˡ 加入 y；<br>
+        <b>end</b><br>
+        <b>return</b> y = (y¹, …, yᴸ)
+      </div>
+    </section>
+
+    <!-- 3 實驗 -->
+    <section class="chapter" id="s3">
+      <h2>3　實驗</h2>
+
+      <h3 id="s3-1">3.1　資料集 <span class="en-inline">Dataset</span></h3>
+      <ul class="list">
+        <li><strong class="term">Amazon 商品評論資料集（Amazon）。</strong>包含 Amazon 應用中的商品評論，每條資料包括標題與描述，需按照三層級分類體系分類，各層級分別有 6、64、510 個標籤類別。</li>
+        <li><strong class="term">Web of Science（WoS）。</strong>關於科學研究文獻的資料集，涵蓋自然科學、社會科學、人文與藝術等多個領域，廣泛用於學術研究、文獻計量分析與科學評價。每條資料依據兩層級分類體系分類，兩層分別有 7 與 134 個標籤類別。</li>
+        <li><strong class="term">DBpedia。</strong>一個基於維基百科構建的開放知識庫專案，科學家從維基百科中抽取並轉化海量資訊，以結構化、標準化格式呈現，DBpedia 內部資料構成一個龐大而複雜的知識圖譜，支援使用者進行跨領域知識探索。每條資料依據三層級分類體系分類，各層分別有 9、70、219 個標籤類別。</li>
+      </ul>
+
+      <h3 id="s3-2">3.2　評估指標 <span class="en-inline">Metric</span></h3>
+      <p>我們採用 <strong class="term">F1-macro（宏平均 F1 分數）</strong>作為評估指標，即對所有類別的 F1 分數取算術平均。F1-macro 能確保稀有類別對最終指標的貢獻與其他類別相同，從而避免在類別分佈不均衡的場景下產生過於樂觀的效能估計，因而適用於類別不平衡的資料集。其定義為：</p>
+      <div class="formula">F1-macro = (1/C) · Σᵢ₌₁ᶜ F1ᵢ　　……（式 3）</div>
+      <p>其中 C 為類別總數，第 i 類的 F1 分數為精確率與召回率的調和平均：</p>
+      <div class="formula">F1ᵢ = 2 × (Precisionᵢ × Recallᵢ) / (Precisionᵢ + Recallᵢ)　　……（式 4）</div>
+      <p>為進一步評估「標籤空間龐大」與「長尾分佈」這兩大挑戰疊加的影響，我們還引入了一個名為「<strong class="term">平均衰減率（average decay rate）</strong>」的指標，因為隨著層級加深，標籤空間會變大、資料分佈也會更加偏斜：</p>
+      <div class="formula">decayᵢ = ( F1-macro(第 i−1 層) − F1-macro(第 i 層) ) / F1-macro(第 i−1 層)　　……（式 5）</div>
+      <div class="formula">decay_avg = (1 / (L−1)) · Σᵢ₌₂ᴸ decayᵢ　　……（式 6）</div>
+
+      <h3 id="s3-3">3.3　實驗設定 <span class="en-inline">Experiment Setup</span></h3>
+      <p><strong class="term">基線方法。</strong>我們將本方法與兩類基線進行比較：第一類是<strong class="term">弱基線</strong>——LLM 針對每一層標籤直接進行分類；第二類是兩項此前研究 <strong class="term">Z-STC</strong> 與 <strong class="term">HiLA</strong>（見第 2 節介紹）作為<strong class="term">強基線</strong>，二者是此前嚴格零樣本設定下的最優方法。</p>
+      <p><strong class="term">實驗細節。</strong>為與強基線研究保持一致，我們選用 <strong class="term">GPT-3.5-turbo</strong> 模型；RAG 系統的嵌入模型採用 <strong class="term">text-embedding-ada-002</strong>；圖資料庫採用 <strong class="term">Neo4j</strong>；向量資料庫採用 <strong class="term">ChromaDB</strong>。</p>
+      <p>在全部資料集的實驗中，我們將 GPT-3.5-turbo 的 temperature 設為 0.4，Top-p 設為 0.4，以保證生成結果的穩定性。對於 RAG 系統，我們在 DBpedia 與 Amazon 資料集上設定相似度閾值 τₗ，使第二層檢索出 10 個候選標籤、第三層檢索出 40 個候選標籤；在 WoS 資料集上設定閾值，使第二層檢索出 20 個候選標籤。這些超引數均透過實驗方式確定。</p>
+      <p>由於 LLM 生成過程存在固有隨機性，生成輸出有時會落在預定義標籤空間之外。此時，我們以固定隨機種子 42，從標籤空間中隨機取樣一個標籤，將無效輸出轉化為有效標籤，以確保結果可復現。</p>
+    </section>
+
+    <!-- 4 結果 -->
+    <section class="chapter" id="s4">
+      <h2>4　結果</h2>
+
+      <h3 id="s4-1">4.1　主要結果 <span class="en-inline">Main Results</span></h3>
+      <p>表 2 的實驗結果表明，KG-HTC 相較弱基線與強基線均實現了一致且顯著的效能提升。</p>
+
+      <table>
+        <caption>表 2. 主要結果（評估指標為 F1-macro）。KG-HTC 相較弱基線與強基線均實現了一致且顯著的提升。</caption>
+        <thead>
+          <tr><th rowspan="2">模型</th><th colspan="2">WoS</th><th colspan="3">DBpedia</th><th colspan="3">Amazon</th></tr>
+          <tr><th>Level 1</th><th>Level 2</th><th>Level 1</th><th>Level 2</th><th>Level 3</th><th>Level 1</th><th>Level 2</th><th>Level 3</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="rowlabel">弱基線：GPT-3.5-turbo</td><td>0.642</td><td>0.358</td><td>0.616</td><td>0.645</td><td>0.672</td><td>0.754</td><td>0.178</td><td>0.129</td></tr>
+          <tr><td class="rowlabel">強基線：Z-STC</td><td>0.741</td><td>0.462</td><td>0.759</td><td>0.656</td><td>0.628</td><td>0.712</td><td>0.348</td><td>0.173</td></tr>
+          <tr><td class="rowlabel">強基線：HiLA</td><td>0.647</td><td>0.371</td><td>0.768</td><td>0.660</td><td>0.629</td><td>0.762</td><td>0.393</td><td>0.249</td></tr>
+          <tr class="best"><td class="rowlabel">本文方法：KG-HTC</td><td>0.756</td><td>0.630</td><td>0.883</td><td>0.796</td><td>0.894</td><td>0.908</td><td>0.654</td><td>0.445</td></tr>
+        </tbody>
+      </table>
+
+      <p>與單獨使用 GPT-3.5-turbo（弱基線）進行零樣本分類相比，KG-HTC 展現出顯著的效能提升：第一層分類的平均效能提升為 <strong class="term">27.1%</strong>，第二層與第三層分別取得 <strong class="term">123.1%</strong> 與 <strong class="term">139.0%</strong> 的提升。這些結果證實了將知識圖譜融入 LLM 能夠顯著提升 HTC 效能。隨著分類層級加深，KG-HTC 展現出越來越大的提升幅度，尤其擅長處理高層級的抽象資訊，說明該方法能有效應對大規模標籤空間與長尾分佈帶來的挑戰。</p>
+
+      <figure>
+        <figcaption><b>圖 4.</b> 隨著分類體系層級加深，KG-HTC 在 WoS 與 Amazon 資料集上表現出更緩慢的效能衰減。三張折線圖分別展示 WoS（Level 1→2）、DBpedia（Level 1→3）、Amazon（Level 1→3）四種方法（Z-STC、HiLA、KG-HTC、GPT-only）的 F1 曲線；圖中標註平均衰減率：
+        <br><b>WoS：</b>Z-STC 0.38，HiLA 0.43，KG-HTC 0.15，GPT-only 0.44；
+        <br><b>DBpedia：</b>Z-STC 0.09，HiLA 0.09，KG-HTC −0.01，GPT-only −0.04；
+        <br><b>Amazon：</b>Z-STC 0.51，HiLA 0.43，KG-HTC 0.30，GPT-only 0.52。
+        <br>可以看出 KG-HTC 在三個資料集上均具有最低（或接近最低）的效能衰減率。</figcaption>
+      </figure>
+
+      <p>如圖 4 所示，隨著分類體系層級加深，KG-HTC 在 WoS 與 Amazon 資料集上展現出最低的效能衰減，三種基線方法之間的效能差距也顯著擴大。這些結果進一步證明本方法能有效應對大規模標籤空間與長尾分佈帶來的挑戰。</p>
+
+      <h3 id="s4-2">4.2　錯誤分析 <span class="en-inline">Error Analysis</span></h3>
+      <p><strong class="term">Hit@K</strong> 用於衡量正確答案出現在檢索器返回的前 K 個結果中的查詢比例。對於 DBpedia 與 Amazon，我們在第二層使用 Hit@10、第三層使用 Hit@40；對於 WoS 第二層的分類，則使用 Hit@20。</p>
+
+      <table>
+        <caption>表 3. 錯誤分析：在全部誤分類樣本中，RAG 系統的 Hit@K 隨層級加深而下降。</caption>
+        <thead>
+          <tr><th rowspan="2">資料集</th><th>WoS</th><th colspan="2">DBpedia</th><th colspan="2">Amazon</th></tr>
+          <tr><th>Level 2</th><th>Level 2</th><th>Level 3</th><th>Level 2</th><th>Level 3</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="rowlabel">Hit@K</td><td>0.731</td><td>0.760</td><td>0.649</td><td>0.498</td><td>0.392</td></tr>
+        </tbody>
+      </table>
+
+      <p>從表 3 的結果可以看出，在全部誤分類樣本中，RAG 系統的 Hit@K 在第二層和第三層均出現下降。這一趨勢說明，效能下降的一個重要原因在於 RAG 系統在推理過程中未能正確檢索到相應子圖。當檢索到的知識與輸入文字或分類任務關聯度不高時，模型缺乏足夠的上下文支援進行準確推理，從而更容易輸出錯誤標籤；不準確或不相關的子圖還可能引入噪聲與混淆，進一步降低模型正確賦標籤的能力。這一觀察也意味著，隨著檢索技術（尤其是檢索精度與相關性）的持續進步，KG-HTC 的效能仍有進一步提升的空間。</p>
+
+      <h3 id="s4-3">4.3　消融實驗 <span class="en-inline">Ablation Study</span></h3>
+      <p>我們在每個評估資料集上以固定隨機種子 42 抽取 5000 條樣本，用於以下消融實驗。</p>
+
+      <p><strong class="term">子圖檢索的有效性。</strong>實證結果表明，透過 RAG 引入知識圖譜能夠提升 LLM 在 HTC 任務上的表現。在這一實驗中，我們評估「子圖檢索」這一元件的作用：移除原本負責從完整知識圖譜中檢索子圖的 RAG 系統，轉而將<strong class="term">完整知識圖譜</strong>直接交給 LLM，其餘部分保持不變，這一設定被稱為 <strong class="term">Full-KG</strong>。</p>
+
+      <table>
+        <caption>表 4. 子圖檢索有效性消融實驗。Full-KG 表示以檢索完整知識圖譜代替基於 RAG 的子圖檢索。</caption>
+        <thead>
+          <tr><th rowspan="2">資料集</th><th colspan="2">WoS</th><th colspan="3">DBpedia</th><th colspan="3">Amazon</th></tr>
+          <tr><th>Level 1</th><th>Level 2</th><th>Level 1</th><th>Level 2</th><th>Level 3</th><th>Level 1</th><th>Level 2</th><th>Level 3</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="rowlabel">Full-KG</td><td>0.762</td><td>0.616</td><td>0.913</td><td>0.670</td><td>0.884</td><td>0.926</td><td>0.633</td><td>0.431</td></tr>
+          <tr class="best"><td class="rowlabel">KG-HTC</td><td>0.749</td><td>0.651</td><td>0.886</td><td>0.811</td><td>0.902</td><td>0.901</td><td>0.651</td><td>0.462</td></tr>
+        </tbody>
+      </table>
+
+      <p>結果顯示，除第一層分類外，KG-HTC 在 F1-macro 上均明顯優於 Full-KG。原因在於第一層的標籤總數較少，此時完整知識圖譜反而能讓 LLM 更好地把握標籤間的語義關係，從而使 Full-KG 在第一層取得更優表現。然而隨著標籤空間擴大，子圖檢索能夠幫助 LLM 提煉出關鍵資訊，緩解長文字輸入所帶來的效能下降問題。</p>
+
+      <p><strong class="term">在開源 LLM 上的表現。</strong>在本實驗中，我們將 LLM 由 GPT-3.5-turbo 替換為 <strong class="term">Qwen2.5-8b</strong>。</p>
+
+      <table>
+        <caption>表 5. 在開源 LLM Qwen2.5-8b 上的消融實驗。</caption>
+        <thead>
+          <tr><th rowspan="2">資料集</th><th colspan="2">WoS</th><th colspan="3">DBpedia</th><th colspan="3">Amazon</th></tr>
+          <tr><th>Level 1</th><th>Level 2</th><th>Level 1</th><th>Level 2</th><th>Level 3</th><th>Level 1</th><th>Level 2</th><th>Level 3</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="rowlabel">Qwen</td><td>0.550</td><td>0.367</td><td>0.472</td><td>0.466</td><td>0.691</td><td>0.783</td><td>0.326</td><td>0.230</td></tr>
+          <tr class="best"><td class="rowlabel">Qwen + KG-HTC</td><td>0.715</td><td>0.509</td><td>0.699</td><td>0.575</td><td>0.799</td><td>0.762</td><td>0.418</td><td>0.343</td></tr>
+        </tbody>
+      </table>
+
+      <p>表 5 顯示，除 Amazon 資料集第一層分類外，KG-HTC 均能提升 Qwen2.5-8b 的表現，這說明本方法在開源 LLM 上同樣具有良好的泛化能力。</p>
+    </section>
+
+    <!-- 5 相關工作 -->
+    <section class="chapter" id="s5">
+      <h2>5　相關工作</h2>
+      <p><strong class="term">層級文字分類。</strong>HTC 任務最早由 Sun 與 Lim 提出，他們建議使用支援向量機（SVM）分類器加以解決。隨後，Kowsari 等人探索了多種深度學習方法，為分類體系的每個層級分別訓練不同的深度神經網路。近期，Liu 等人提出將知識圖譜融入 HTC：他們採用圖神經網路（GraphSAGE）編碼知識圖譜，並將圖嵌入與 BERT 文字嵌入相結合進行微調，這一方法目前是監督式設定下的最優方法。然而監督式方法在工業應用中面臨挑戰，其主要問題在於標註資料的匱乏——在多個層級上標註資料的成本往往過高。隨著 LLM 效能不斷提升，零樣本推理在眾多領域中日益普及。</p>
+
+      <p><strong class="term">零樣本 HTC。</strong>與本文嚴格零樣本設定相關的研究主要有三項：</p>
+      <ul class="list">
+        <li>Halder 等人提出「任務感知表示（Task-Aware Representation）」方法，用於零樣本文字分類，將任意文字分類任務轉化為通用的二元分類問題——給定文字與一組標籤，LLM 判斷該標籤是否匹配（輸出「真」或「假」）。但由於 HTC 標籤空間龐大，該方法完成一次分類需要多輪迭代。</li>
+        <li>Bongiovanni 等人提出 <strong class="term">Z-STC</strong>（Zero-shot Semantic Text Classification），採用「向上分數傳播（Upward Score Propagation, USP）」方法處理 HTC。該方法利用 BERT、RoBERTa 等預訓練深度語言模型，分別將文件與分類標籤編碼到同一語義向量空間中，再透過餘弦相似度計算每個標籤的先驗相關性分數。結合分類體系的層級結構，USP 會遞迴地將下層標籤的相關性分數向上傳播至其父節點——其核心思想是：若某個子標籤與待分類內容高度相關，則其父標籤也應被視為相關。這種層級化的分數傳播機制有效地將區域性語義線索融入全域性分類體系，從而提升整體分類效能。</li>
+        <li>Paletto 等人提出 <strong class="term">HiLA</strong>（Hierarchical Label Augmentation）方法，利用預訓練 LLM 為現有標籤體系的葉子節點生成額外的子標籤。由於將完整層級體系直接輸入 LLM 會面臨 token 數量限制的挑戰，他們採用迭代方式為每個分支生成擴充套件子標籤，以避免重複與標籤重疊；此外，Paletto 等人在新生成的更深層級上應用 Bongiovanni 提出的 Z-STC 方法完成 HTC 任務。因此，HiLA 是嚴格零樣本設定下此前的最優方法。</li>
+      </ul>
+      <p>然而，正如本文第 4 節所展示的那樣，Bongiovanni 與 Paletto 的方法在層級更深的標籤上分類準確率均較低。這是因為隨著分類體系層級加深，對應單層分類任務的標籤空間會變得更大，標籤分佈也會更加偏斜。</p>
+
+      <p><strong class="term">檢索增強生成（RAG）。</strong>RAG 能夠在上下文學習推理過程中，動態地從外部語料庫或資料庫檢索相關資訊。<strong class="term">圖 RAG（Graph RAG）</strong>將 RAG 擴充套件為透過知識圖譜檢索相互關聯的實體與關係，從而實現更豐富的上下文理解。RAG 與圖 RAG 均已在開放域問答任務中展現出顯著提升。然而，目前將 RAG 與圖 RAG 應用於文字分類的研究仍較為有限。</p>
+    </section>
+
+    <!-- 6 結論 -->
+    <section class="chapter" id="s6">
+      <h2>6　結論</h2>
+      <p>監督式 HTC 方法在工業應用中面臨諸多挑戰。本文提出 <strong class="term">KG-HTC</strong>——一種利用知識圖譜與大語言模型完成 HTC 任務的零樣本方法。KG-HTC 能夠動態檢索出與輸入文字語義相關的子圖並構建結構化提示詞，從而在嚴格零樣本場景下顯著提升分類效能。實驗結果表明，KG-HTC 在三個開源資料集（Amazon、WoS、DBpedia）的零樣本設定下均達到最優效能，且在更深層級標籤的分類上提升尤為顯著。</p>
+    </section>
+
+    <!-- 7 侷限性 -->
+    <section class="chapter" id="s7">
+      <h2>7　侷限性</h2>
+      <p>本研究的一項侷限在於假設已有一個<strong class="term">完整且正確的標籤分類體系</strong>可供使用。因此，知識圖譜中存在的任何不準確或錯誤都可能導致本方法效能下降。我們未來的研究方向將聚焦於如何更高效地利用大語言模型構建穩健且準確的知識圖譜。此外，本文所用的評估資料集也可能被用於 LLM 的後訓練階段。</p>
+    </section>
+
+    <!-- 倫理宣告與致謝 -->
+    <section class="chapter" id="ethics">
+      <h2>倫理宣告與致謝</h2>
+      <p><strong class="term">倫理宣告：</strong>本研究不涉及倫理問題。所使用的 LLM 資料庫及來自 Kaggle 的評估資料集均可用於研究目的。</p>
+      <p><strong class="term">致謝：</strong>本研究部分由盧森堡國家研究基金（FNR，資助編號 14783405）資助，研究工作與 Enovos Luxembourg S.A. 合作開展。為滿足開放獲取相關義務及資助協議要求，作者已對本次投稿產生的任何作者接受稿（Author Accepted Manuscript）版本採用知識共享署名 4.0 國際許可協議（CC BY 4.0）。</p>
+    </section>
+
+    <!-- 參考文獻 -->
+    <section class="chapter" id="refs">
+      <h2>參考文獻</h2>
+      <div class="note-box">
+        <div class="label">說明</div>
+        以下參考文獻條目保留英文原文出處資訊（作者、題名、出處），便於查證與檢索，不作逐條翻譯。
+      </div>
+      <p class="refs">
+        <span class="refnum">[1]</span> Auer, Bizer, Kobilarov, Lehmann, Cyganiak, Ives — DBpedia: A nucleus for a web of open data (2007).<br>
+        <span class="refnum">[2]</span> Bongiovanni, Bruno, Dominici, Rizzo — Zero-shot taxonomy mapping for document classification (SAC 2023).<br>
+        <span class="refnum">[3]</span> Brown et al. — Language models are few-shot learners (NeurIPS 2020).<br>
+        <span class="refnum">[4]</span> Chatterjee, Maheshwari, Ramakrishnan, Jagarlapudi — Joint learning of hyperbolic label embeddings for HMC (EACL 2021).<br>
+        <span class="refnum">[5]</span> Chen, Yu, Bowman — Clean or annotate: How to spend a limited data collection budget (DeepLo 2022).<br>
+        <span class="refnum">[6]</span> Chen, Ma, Lin, Yan — Hierarchy-aware label semantics matching network for HTC (ACL 2021).<br>
+        <span class="refnum">[7]</span> Devlin, Chang, Lee, Toutanova — BERT: Pre-training of deep bidirectional transformers (NAACL 2019).<br>
+        <span class="refnum">[8]</span> Edge et al. — From local to global: A graph RAG approach to query-focused summarization (arXiv 2024).<br>
+        <span class="refnum">[9]</span> Fan et al. — A survey on RAG meeting LLMs (KDD 2024).<br>
+        <span class="refnum">[10]</span> Gao et al. — Retrieval-augmented generation for LLMs: A survey (arXiv 2023).<br>
+        <span class="refnum">[11]</span> Halder, Akbik, Krapac, Vollgraf — Task-aware representation of sentences for generic text classification (COLING 2020).<br>
+        <span class="refnum">[12]</span> Hendrycks et al. — Measuring massive multitask language understanding (ICLR 2021).<br>
+        <span class="refnum">[13]</span> Huang et al. — Hierarchical multi-label text classification: An attention-based recurrent network approach (CIKM 2019).<br>
+        <span class="refnum">[14]</span> Karpukhin et al. — Dense passage retrieval for open-domain QA (EMNLP 2020).<br>
+        <span class="refnum">[15]</span> Kashnitsky — Hierarchical text classification (Kaggle dataset, 2020).<br>
+        <span class="refnum">[16]</span> Kowsari, Brown, Heidarysafa, Jafari Meimandi, Gerber, Barnes — HDLTex: Hierarchical deep learning for text classification (ICMLA 2017).<br>
+        <span class="refnum">[17]</span> Lewis et al. — Retrieval-augmented generation for knowledge-intensive NLP tasks (NeurIPS 2020).<br>
+        <span class="refnum">[18]</span> Li, Zhang, Do, Yue, Chen — Long-context LLMs struggle with long in-context learning (arXiv 2024).<br>
+        <span class="refnum">[19]</span> Li, Zang, Ma, Guo, Zheng, Liu, Niu, Wang, Yang, Liu et al. — AutoKaggle (arXiv 2024).<br>
+        <span class="refnum">[20]</span> Liu et al. — DeepSeek-V3 技術報告 (arXiv 2024).<br>
+        <span class="refnum">[21]</span> Liu, Ott, Goyal, Du, Joshi, Chen, Levy, Lewis, Zettlemoyer, Stoyanov — RoBERTa (arXiv 2019).<br>
+        <span class="refnum">[22]</span> Liu, Zhang, Huang, Wang, Zhang, Liu, Chen — Enhancing hierarchical text classification through knowledge graph integration (ACL Findings 2023).<br>
+        <span class="refnum">[23]</span> Luo, Song, Huang, Lian, Zhang, Jiang, Xie — GraphInstruct (arXiv 2024).<br>
+        <span class="refnum">[24]</span> Meng, Shen, Zhang, Han — Weakly-supervised hierarchical text classification (AAAI 2019).<br>
+        <span class="refnum">[25]</span> Paletto, Basile, Esposito — Label augmentation for zero-shot hierarchical text classification (ACL 2024).<br>
+        <span class="refnum">[26]</span> Patel, Dangati, Lee, Boratko, McCallum — Modeling label space interactions in multi-label classification using box embeddings (ICLR 2022).<br>
+        <span class="refnum">[27]</span> Peng, Zhu, Liu, Bo, Shi, Hong, Zhang, Tang — Graph retrieval-augmented generation: A survey (arXiv 2024).<br>
+        <span class="refnum">[28]</span> Radford, Narasimhan, Salimans, Sutskever — Improving language understanding by generative pre-training (OpenAI, 2018).<br>
+        <span class="refnum">[29]</span> Simonofski, Fink, Burnay — Supporting policy-making with social media and e-participation platforms data (GIQ 2021).<br>
+        <span class="refnum">[30]</span> Sun, Lim — Hierarchical text classification and evaluation (ICDM 2001).<br>
+        <span class="refnum">[31]</span> Touvron et al. — LLaMA: Open and efficient foundation language models (arXiv 2023).<br>
+        <span class="refnum">[32]</span> Yang et al. — Qwen2.5 技術報告 (arXiv 2024).<br>
+        <span class="refnum">[33]</span> Zhang, Dong, Chen, Zha, Yu, Huang — KnowGPT: Knowledge graph based prompting for LLMs (NeurIPS 2024).<br>
+        <span class="refnum">[34]</span> Zhang, Yang, Xu, Li, Xiao, Shen, Han — TELEClass (arXiv 2024).<br>
+        <span class="refnum">[35]</span> Zhu, Zang, Jia, Wu, Fang, Li, Gavin, Zheng, Guo, Li et al. — LIME: Less is more for MLLM evaluation (arXiv 2024).
+      </p>
+      <a href="#abstract" class="back-top">↑ 回到摘要</a>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  // Mobile menu toggle
+  const menuBtn = document.getElementById('menuBtn');
+  const tocNav = document.getElementById('tocNav');
+  if(menuBtn){
+    menuBtn.addEventListener('click', () => {
+      tocNav.classList.toggle('open');
+    });
+  }
+
+  // Close menu on link click (mobile)
+  const navLinks = document.querySelectorAll('.navlink');
+  navLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      if(window.innerWidth <= 880){
+        tocNav.classList.remove('open');
+      }
+    });
+  });
+
+  // Scrollspy: highlight active section in TOC
+  const sections = document.querySelectorAll('section.chapter, .paper-header');
+  const idToLink = {};
+  navLinks.forEach(l => {
+    const id = l.getAttribute('href').substring(1);
+    idToLink[id] = l;
+  });
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const id = entry.target.id;
+      if(!id || !idToLink[id]) return;
+      if(entry.isIntersecting){
+        navLinks.forEach(l => l.classList.remove('active'));
+        idToLink[id].classList.add('active');
+      }
+    });
+  }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+
+  document.querySelectorAll('section.chapter[id], h3[id]').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>

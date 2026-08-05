@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>HiSR：階層文本分類中對比學習的新型負樣本生成方法（中文翻譯）</title>
+<style>
+  :root{
+    --bg:#faf8f4;
+    --card:#ffffff;
+    --ink:#242017;
+    --muted:#6b6455;
+    --accent:#8a5a3b;
+    --accent2:#c98a4b;
+    --line:#e7ddcd;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Noto Serif TC","Songti TC","PMingLiU",serif;
+    line-height:1.9;
+  }
+  .layout{
+    max-width:1240px;
+    margin:0 auto;
+    padding:36px 24px 100px;
+    display:flex;
+    align-items:flex-start;
+    gap:36px;
+  }
+  .wrap{max-width:860px;flex:1 1 auto;min-width:0;}
+  header.title{
+    text-align:center;
+    margin-bottom:40px;
+    padding-bottom:28px;
+    border-bottom:3px double var(--accent);
+  }
+  header.title h1{
+    font-size:1.7em;
+    margin:0 0 8px;
+    line-height:1.5;
+  }
+  header.title .en{
+    font-family:Georgia,serif;
+    color:var(--muted);
+    font-size:0.95em;
+    font-style:italic;
+  }
+  header.title .meta{
+    margin-top:14px;
+    color:var(--muted);
+    font-size:0.88em;
+  }
+  nav.toc{
+    position:sticky;
+    top:24px;
+    flex:0 0 220px;
+    width:220px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:20px 20px;
+    max-height:calc(100vh - 48px);
+    overflow-y:auto;
+  }
+  nav.toc h2{margin-top:0;font-size:1.0em;color:var(--accent);}
+  nav.toc ol{margin:0;padding-left:1.2em;}
+  nav.toc li{margin-bottom:8px;line-height:1.5;}
+  nav.toc a{color:var(--ink);text-decoration:none;font-size:0.92em;}
+  nav.toc a:hover{color:var(--accent);text-decoration:underline;}
+  nav.toc a.active{color:#fff;background:var(--accent);padding:2px 8px;border-radius:5px;display:inline-block;}
+  @media (max-width:880px){
+    .layout{flex-direction:column;}
+    nav.toc{
+      position:static;
+      width:100%;
+      max-height:none;
+      order:-1;
+    }
+  }
+
+  section{margin-bottom:44px;}
+  h2.sec{
+    font-size:1.3em;
+    color:#fff;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    padding:10px 18px;
+    border-radius:8px;
+    margin-bottom:18px;
+  }
+  h3.sub{
+    font-size:1.08em;
+    color:var(--accent);
+    border-left:4px solid var(--accent2);
+    padding-left:10px;
+    margin:26px 0 12px;
+  }
+  p{margin:0 0 14px;text-align:justify;}
+  .orig-term{color:var(--muted);font-family:Georgia,serif;font-size:0.92em;}
+  .callout{
+    background:#fff7ec;
+    border:1px solid #eccf9d;
+    border-left:5px solid var(--accent2);
+    border-radius:6px;
+    padding:14px 18px;
+    margin:16px 0;
+    font-size:0.95em;
+  }
+  .callout b{color:var(--accent);}
+  .formula{
+    background:#f3f0e8;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:14px 18px;
+    margin:14px 0;
+    text-align:center;
+    font-family:"Cambria Math",Georgia,serif;
+    font-size:1.05em;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:16px 0 22px;
+    font-size:0.92em;
+  }
+  caption{
+    caption-side:top;
+    text-align:left;
+    font-weight:bold;
+    color:var(--accent);
+    margin-bottom:8px;
+  }
+  th,td{
+    border:1px solid var(--line);
+    padding:7px 10px;
+    text-align:center;
+  }
+  th{background:#f3e9db;}
+  td:first-child, th:first-child{text-align:left;}
+  .bold-cell{font-weight:bold;color:var(--accent);}
+  ul.contrib{padding-left:1.3em;}
+  ul.contrib li{margin-bottom:10px;}
+  .figure-note{
+    background:#f3f0e8;
+    border:1px dashed var(--line);
+    border-radius:6px;
+    padding:12px 16px;
+    font-size:0.9em;
+    color:var(--muted);
+    margin:14px 0;
+  }
+  footer{
+    margin-top:60px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    color:var(--muted);
+    font-size:0.85em;
+    text-align:center;
+  }
+  .deepdive{
+    background:#fbf5ea;
+    border:1px solid #e3cf9f;
+    border-radius:10px;
+    padding:20px 24px;
+    margin:18px 0 20px;
+  }
+  .deepdive > .dd-title{
+    font-weight:bold;
+    color:var(--accent);
+    font-size:1.02em;
+    margin-bottom:12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .deepdive h4{
+    margin:18px 0 8px;
+    color:var(--accent);
+    font-size:0.98em;
+  }
+  .deepdive table{margin:10px 0 16px;font-size:0.88em;}
+  .deepdive table th{background:#eee0c4;}
+  .deepdive p{margin-bottom:12px;}
+  .deepdive .example{
+    background:#ffffff;
+    border:1px dashed #d8c193;
+    border-radius:6px;
+    padding:10px 14px;
+    margin:10px 0;
+    font-size:0.9em;
+  }
+  .deepdive .keypoint{
+    background:#f3e9db;
+    border-radius:6px;
+    padding:10px 14px;
+    margin:12px 0;
+    font-size:0.92em;
+  }
+  .deepdive .keypoint b{color:var(--accent);}
+  .ref-note{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:16px 20px;
+    font-size:0.9em;
+    color:var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" id="tocNav">
+  <h2>目錄</h2>
+  <ol>
+    <li><a href="#abs" data-target="abs">摘要</a></li>
+    <li><a href="#s1" data-target="s1">第1節　引言</a></li>
+    <li><a href="#s2" data-target="s2">第2節　相關工作</a></li>
+    <li><a href="#s3" data-target="s3">第3節　方法論</a></li>
+    <li><a href="#s4" data-target="s4">第4節　實驗</a></li>
+    <li><a href="#s5" data-target="s5">第5節　分析</a></li>
+    <li><a href="#s6" data-target="s6">第6節　結論／限制／倫理聲明</a></li>
+  </ol>
+</nav>
+
+<div class="wrap">
+
+<header class="title">
+  <h1>用於階層文本分類中對比學習的<br>新型負樣本生成方法</h1>
+  <div class="en">A Novel Negative Sample Generation Method for Contrastive Learning in Hierarchical Text Classification</div>
+  <div class="meta">
+    Juncheng Zhou・Lijuan Zhang・Yachen He・Rongli Fan・Lei Zhang・Jian Wan<br>
+    浙江科技大學／ByteDance Ltd.　｜　COLING 2025（第31屆國際計算語言學會議）第5645–5655頁
+  </div>
+</header>
+
+<section id="abs">
+<h2 class="sec">摘要</h2>
+<p>階層文本分類（Hierarchical Text Classification, HTC）是自然語言處理（NLP）中的一項重要任務。現有方法通常同時利用文本特徵與標籤的階層結構來對文本進行分類。然而，這些方法在面對彼此高度相似的細粒度標籤時，往往難以準確分類。與此同時，對比學習在強化細粒度標籤特徵與區分能力方面具有顯著優勢，但對比學習的效果高度依賴於負樣本的構造方式。本文設計了一種<b>階層序列排序（Hierarchical Sequence Ranking, HiSR）</b>方法，用於生成多樣化的負樣本，以最大化對比學習的效果，藉此提升模型區分細粒度標籤的能力，並改善模型在 HTC 任務上的表現。具體而言，我們依據標籤的階層結構，將整個標籤集合轉換為多條線性序列，並依其品質對這些序列進行排序；在模型訓練過程中，動態地從排序後的序列中挑選出最合適的負樣本。本方法已在三個公開資料集上進行測試，並在其中兩個資料集上達到了當前最優（SOTA）表現，證明了其有效性。</p>
+</section>
+
+<section id="s1">
+<h2 class="sec">1　引言</h2>
+<p>階層文本分類旨在將文本劃分至一組由粗到細排列的結構化類別中，藉此捕捉語言的複雜性與多維性。由於學術文獻、法律文件、線上內容等各領域文本資料量龐大，HTC 的重要性日益凸顯。在 HTC 中，標籤之間的階層結構通常被建模為樹狀結構或有向無環圖（DAG），如圖1所示。</p>
+
+<div class="figure-note">
+<b>圖1說明：</b>以《紐約時報》（NYT）資料集為例展示 HTC。標籤階層從上到下排列，粒度由粗到細——例如根節點下分為「新聞（News）」「專題（Features）」「分類廣告（Classifieds）」等粗粒度類別，再逐層細分至「銀行、金融與保險」「銷售與商業發展」等細粒度類別。圖中並標示出一段真實新聞文本及其對應的真實標籤路徑（Root → News → U.S. → Midwest 等）。
+</div>
+
+<p>現有的 HTC 方法大致可分為<b>局部方法（local approaches）</b>與<b>全局方法（global approaches）</b>兩類。局部方法為階層中的每個節點分配一個獨立分類器，這會導致參數量龐大，並容易產生曝光偏差（exposure bias）。全局方法則使用單一分類器處理整個階層，參數量較少、效率較高，但這類方法難以應對 HTC 中「資料分佈不均衡」與「跨層級複雜依賴關係」所帶來的挑戰，導致模型對細粒度標籤的區分能力下降。</p>
+
+<p>如圖1所示，粗粒度標籤（如「新聞」「專題」「分類廣告」）之間的差異，明顯大於細粒度標籤（如「銀行、金融與保險」和「銷售與商業發展」）之間的差異。因此，區分深層、細粒度的標籤對 HTC 的效能至關重要。對比學習已被證實能有效增強標籤特徵與標籤可區分性，但目前將 HTC 與對比學習結合的研究仍處於早期階段：既有研究主要著重於「從文本角度透過資料增強構造正樣本」，卻未能解決「區分相似細粒度標籤」這一核心挑戰。作者認為，解決此問題的關鍵在於結合複雜的階層結構來構造恰當的正、負樣本。</p>
+
+<p>為此，本文提出 <b>HiSR（階層序列排序）</b>方法，從標籤角度生成更有效的負樣本，協助對比學習提升模型區分細粒度標籤的能力。其核心思路是：充分利用標籤系統的整體階層結構，並運用<b>深度優先搜尋演算法（DFS）</b>構造多條序列型負樣本，接著在模型訓練過程中動態選取最具挑戰性的負樣本組合，以確保負樣本的高品質與多樣性。這種有針對性的動態選擇機制，對於放大細粒度標籤之間的差異至關重要。</p>
+
+<h3 class="sub">本文主要貢獻</h3>
+<ul class="contrib">
+  <li>我們創新性地設計了一種負樣本生成策略 <b>HiSR</b>，為對比學習提供高品質的負樣本，解決了細粒度標籤難以區分的問題。</li>
+  <li>HiSR 將標籤建模為序列並依品質排序，為引入「負樣本–負樣本」比較提供了基礎；此外，訓練過程中採用動態選擇機制，為模型提供最合適的負樣本。</li>
+  <li>實驗證明，本文所提方法在三個廣泛使用的公開資料集上均優於既有研究成果。程式碼已開源於 <a href="https://github.com/zjcjason/HiSR" target="_blank">https://github.com/zjcjason/HiSR</a>。</li>
+</ul>
+</section>
+
+<section id="s2">
+<h2 class="sec">2　相關工作</h2>
+
+<h3 class="sub">2.1　階層文本分類</h3>
+<p>HTC 的主要挑戰包括：充分利用類別間的階層資訊、區分相似的細粒度標籤，以及處理資料不均衡問題。既有研究大致可分為局部方法與全局方法兩大類。</p>
+<p><b>局部方法</b>在階層中的每個節點或層級使用專門的分類器。例如有研究提出從父分類器向子分類器傳遞參數的策略以提升節點效率；也有研究提出結合局部與全局策略的混合方法以降低曝光偏差；還有研究透過參數共享機制處理類別分佈的偏斜問題；亦有研究利用 N-gram 詞元搭配圖卷積網路（GCN）與遞迴正則化來捕捉階層表示。這些方法反映了局部方法在 HTC 領域的演進歷程。</p>
+<p><b>全局方法</b>使用單一統一模型同時指派多個階層標籤，將整個階層整合進單一預測框架中。相關研究深入探討了連續層級之間（尤其是父子關係）的複雜關聯；後續研究進一步將焦點延伸至：先驗階層機率、標籤整體結構、資料不均衡、標籤與語意的對齊、對比學習在詞元表示中的應用等面向。其中，HJCL 建構了基於 HGCLR 的階層感知聯合監督式對比學習方法；HALB 則加入多標籤負向監督與非對稱損失函數。此外，亦有研究在提示調校（prompt-tuning）與多標籤遮罩語言模型方面取得進展，致力於形成對階層語意的連貫理解；也有研究致力於建構同時涵蓋局部與全局階層維度的共通表示。近期，NERHTC 則將 HTC 視為一項命名實體識別（NER）任務來處理。</p>
+<p>綜上所述，HTC 領域面臨的挑戰在於：如何設計出能夠充分利用標籤間階層關係的演算法，以提升分類的準確度與效率。</p>
+
+<h3 class="sub">2.2　對比學習</h3>
+<p>對比學習是機器學習與深度學習中廣泛使用的一項技術，旨在透過比較不同樣本來學習有利於下游任務的通用化表示。此方法的關鍵在於正、負樣本的構造。在 NLP 領域，構造這類樣本的標準方法包括：回譯（back-translation）、詞語與片段的刪除／重排／替換、對原始詞元進行隨機擾動等，這些方法主要用於生成正樣本。而納入負樣本則可進一步提升對比學習的效果——例如，有研究透過語意改變的詞語修改來引入擾動以生成負樣本；也有研究透過調整模型的嵌入層來生成對抗樣本。</p>
+<p>然而，這些方法都是針對特定下游任務量身打造的正、負樣本生成方式。由於 HTC 具有複雜的階層結構，要生成同時符合「文本語意」與「階層結構」兩方面要求的正、負樣本極為困難。</p>
+</section>
+
+<section id="s3">
+<h2 class="sec">3　方法論</h2>
+<p>本節聚焦於負樣本生成與對比學習模組，這是提升模型區分細粒度階層標籤能力的關鍵所在。此外，本節也將說明文本編碼器與結構編碼器，最後介紹整合各組成部分以優化模型整體效能的目標函數。圖2展示了本模型的整體架構。</p>
+
+<div class="figure-note">
+<b>圖2說明（整體架構）：</b>文本先經 BERT 編碼為文本表示，同時標籤階層經結構編碼器（Structure Encoder，即階層 GCN）編碼；兩者輸入多標籤分類器產生 logits，用於計算分類損失（Classify loss）。另一方面，虛線框內展示 HiSR 的核心流程：對「標籤階層」進行遍歷（Ergodic）以 DFS 產生多條標籤序列，並與「真實標籤（Ground Truth）」比對計算 F1 分數；依 F1 分數分組（排除 F1=1 的正樣本）並取平均後挑選機率最高者作為當前回合的負樣本；真實標籤序列作為正樣本，連同挑出的負樣本一起送入「對比學習（Contrast Learning）」模組計算 HiSR 損失。
+</div>
+
+<h3 class="sub">3.1　問題定義</h3>
+<p>在 HTC 任務中，目標是將一組文本集合 X = {x₁, x₂, …, xₙ}（n 為文本數量）映射到標籤子集 Yᵢ ⊆ Y，其中 Y = {y₁, y₂, …, yₙ} 為完整標籤集合。與傳統文本分類不同，HTC 任務的特點在於標籤間存在預先定義的階層關係 H，該關係可能表現為樹狀結構、有向無環圖（DAG），或其他複雜的階層形態。這種階層組織不僅反映了標籤間的語意關係，也對理解複雜的資訊內容具有重要作用。</p>
+
+<h3 class="sub">3.2　文本編碼器</h3>
+<p>考量 HTC 的挑戰，本文選用 BERT 作為文本編碼器，因其能捕捉雙向語境，對語言有較全面的理解。BERT 先在大規模資料上進行預訓練，再針對特定任務進行微調，因此在各類 NLP 應用中表現優異。</p>
+<p>設輸入文本為 x：</p>
+<div class="formula">x = { [CLS], t₁, t₂, …, t<sub>n-1</sub>, [SEP] }　　（式1）</div>
+<p>其中 [CLS] 與 [SEP] 分別是代表文本起始與結束的特殊標記。將文本 x 輸入 BERT 後，可得到每個詞元的隱藏狀態：</p>
+<div class="formula">H<sub>status</sub> = BERT(x)　　（式2）</div>
+<p>其中 H<sub>status</sub> ∈ ℝ<sup>n×d<sub>h</sub></sup>，d<sub>h</sub> 為隱藏層維度。由於 [CLS] 詞元的位置及自注意力機制的作用，它能彙集整段文本序列的完整資訊。因此，後續流程中我們使用 [CLS] 詞元的隱藏狀態來代表整段文本。</p>
+
+<h3 class="sub">3.3　結構編碼器</h3>
+<p>圖卷積網路（GCN）在 NLP 中被廣泛用作結構編碼器以聚合節點資訊。GCN 是一種專為圖結構資料設計的神經網路，能透過直接操作節點與邊，有效捕捉節點間的複雜關係及圖的整體結構。GCN 的核心優勢在於能利用節點的局部連接模式，將這些局部資訊整合為對整張圖的全局理解。</p>
+<p>本文採用<b>階層式 GCN（Hierarchical-GCN）</b>來聚合細粒度標籤結構的全局關係資訊。階層式 GCN 透過「由上而下（top-down）」「由下而上（bottom-up）」與「自迴路（self-loop）」三種邊，在層內與跨層之間聚合資料流。在此階層圖中，每個節點代表一個對應標籤，每條有向邊代表標籤間關係的相關特徵。每個節點的新特徵表示，是透過結合自身特徵與相鄰節點特徵計算而得——通常包括：對相鄰節點特徵加權、進行線性變換（如乘以權重矩陣），再經非線性激活函數更新節點的特徵表示。</p>
+<p>然而，上述變換若為每條有向邊都使用獨立的權重矩陣來編碼資訊，將大幅增加模型的參數量與複雜度，可能導致過度參數化。本文參考既有研究的做法，將此變換簡化為以階層先驗機率作為加權鄰接矩陣。</p>
+<p>節點 i 的隱藏狀態是透過其相關聯的鄰居 M(i) = {mᵢ, child(i), parent(i)} 進行編碼，具體如下：</p>
+<p>首先，定義節點 i 與其鄰居節點 t 之間的聯合向量 w<sub>i,t</sub>：</p>
+<div class="formula">w<sub>i,t</sub> = c<sub>i,t</sub>x<sub>t</sub> + d<sub>i</sub><sup>m</sup>　　（式3）</div>
+<p>其中 c<sub>i,t</sub> 為階層機率係數（自迴路邊 c<sub>i,i</sub>=1；由上而下邊 h<sub>c</sub>(q<sub>t,i</sub>)=M<sub>i</sub>/M<sub>t</sub>；由下而上邊 h<sub>p</sub>(q<sub>t,i</sub>)=1），x<sub>t</sub> 為鄰居節點 t 的特徵向量，d<sub>i</sub>∈ℝ<sup>N×dim</sup> 為偏置項。</p>
+<p>接著，透過權重矩陣變換與 sigmoid 激活函數計算節點 i 的邊特徵 f<sub>i,t</sub>：</p>
+<div class="formula">f<sub>i,t</sub> = σ(U<sub>f</sub><sup>e(t,i)</sup>x<sub>i</sub> + d<sub>f</sub><sup>i</sup>)　　（式4）</div>
+<p>其中 U<sub>f</sub><sup>e(t,i)</sup>∈ℝ<sup>dim</sup> 為從節點 t 到節點 i 的階層方向權重矩陣，d<sub>f</sub><sup>i</sup>∈ℝ<sup>N</sup> 為偏置項。</p>
+<p>最後，節點 i 的輸出隱藏狀態 p<sub>i</sub> 由所有鄰居節點特徵的加權和計算而得，並經 ReLU 激活函數：</p>
+<div class="formula">p<sub>i</sub> = ReLU( Σ<sub>t∈M(i)</sub> f<sub>i,t</sub> ⊙ w<sub>i,t</sub> )　　（式5）</div>
+<p>節點 i 的輸出隱藏狀態 p<sub>i</sub> 即代表該標籤的表示，捕捉了階層結構資訊。</p>
+
+<h3 class="sub">3.4　負樣本生成與對比學習模組</h3>
+<p>既有 HTC 研究已取得顯著成果，然而在更深層次上，現有模型仍難以準確分類部分複雜的細粒度標籤。為應對此挑戰，本文採用對比學習來增強這些標籤間的區分度。負樣本的品質是對比學習能否有效發揮作用的關鍵因素。為此，本文提出全新的負樣本生成方法——<b>HiSR</b>，為對比學習提供全面且多樣化的負樣本集合。</p>
+
+<div class="callout">
+<b>核心流程：</b>
+<ol>
+<li>HiSR 先以 DFS 演算法遍歷整個標籤樹，為每個標籤生成一條由上而下的序列（該序列從第一層標籤開始，止於該標籤本身）；所有序列共同構成負樣本集合 S。</li>
+<li>每條序列的預測機率 P，為該序列中所有標籤機率的平均值。</li>
+<li>依此構造「正樣本–負樣本」對比損失。</li>
+<li>進一步引入「負樣本–負樣本」比較，依 F1 分數對負樣本分組排序，並在每個訓練回合動態挑選預測機率最高（最具挑戰性）的樣本作為負樣本。</li>
+</ol>
+</div>
+
+<p>每條序列的預測機率計算公式如下：</p>
+<div class="formula">P = ( Σ<sub>i=1</sub><sup>L</sup> p<sub>i</sub> ) / L　　（式6）</div>
+<p>其中 L 為序列長度，p<sub>i</sub> 為序列中第 i 個標籤的機率。由此，正負樣本的對比損失函數 L<sub>pn</sub> 可表示為：</p>
+<div class="formula">L<sub>pn</sub> = Σ<sub>j∈S</sub> max(0, P<sub>p</sub> − P<sub>j</sub> + λ)　　（式7）</div>
+<p>其中 P<sub>p</sub> 為真實標籤（正樣本）的預測機率，P<sub>j</sub> 為第 j 條序列（負樣本）的預測機率，λ 為正、負樣本間的邊界間隔（margin）。</p>
+
+<p>然而，僅比較「正樣本–負樣本」會導致模型忽略負樣本之間的細微差異，因此本文進一步引入「負樣本–負樣本」比較。此比較機制能進一步細化負樣本間的區分、增強模型對細粒度標籤細微特徵差異的敏感度，並避免模型將所有負樣本簡單地歸為同一類，從而提升模型分類細粒度標籤的能力。此外，由於 HTC 中不同負樣本可能存在部分重疊的標籤路徑，透過比較這些負樣本，模型能更深入理解階層中的父子與同層（兄弟）關係，進而強化其辨識標籤結構複雜性的認知能力——這對於提升模型在複雜階層標籤系統中的分類效能至關重要。</p>
+
+<p>具體而言，在「負樣本–負樣本」比較中，本文假設：越接近真實標籤的序列，應被賦予越高的預測機率。因此，HiSR 首先計算真實標籤與各生成序列的 <b>F1 分數</b>（HTC 領域常用的評估指標）；接著，將 F1 分數相同的序列分為一組，並依 F1 分數由高到低排序（使越接近真實標籤的序列排在越前面）。最後，在訓練階段的每一回合中，從排序後的各組中挑選預測機率最高者作為負樣本。此動態選擇策略能為對比學習提供最具挑戰性的負樣本，充分發揮對比學習的潛力。「負樣本–負樣本」對比損失函數如下：</p>
+<div class="formula">L<sub>nn</sub> = Σ<sub>i</sub> Σ<sub>j>i</sub> max(0, P<sub>i</sub> − P<sub>j</sub> + λ<sub>ij</sub>)　　（式8）</div>
+<p>其中 λ<sub>ij</sub> 為間隔（margin）乘以樣本間排名距離，即 λ<sub>ij</sub> = (j − i) × λ。</p>
+<p>此「負樣本–負樣本」對比損失函數的作用，在於：在缺乏標準樣本的情況下，透過評估不同分數的樣本，提升模型辨識負樣本的能力，因而在對比學習中展現出獨特優勢與廣泛的應用前景。</p>
+
+<div class="deepdive">
+  <div class="dd-title">🔍 深入解析：F1 分數與預測機率 P 究竟是什麼關係？</div>
+
+  <p>F1 分數與預測機率 P 其實是<b>兩個獨立來源的量</b>，但透過「排序」與「損失函數」被刻意連結在一起。理解兩者的分工，是讀懂「負樣本–負樣本」比較機制的關鍵。</p>
+
+  <h4>1. 兩者的本質不同</h4>
+  <table>
+    <tr><th></th><th>F1 分數</th><th>預測機率 P</th></tr>
+    <tr><td style="text-align:left;">計算方式</td><td>比對「生成序列」與「真實標籤集合」的重疊程度（precision／recall）</td><td>由式6計算，即該序列中所有標籤機率 pᵢ 的平均值</td></tr>
+    <tr><td style="text-align:left;">來源</td><td>純粹基於<b>標籤集合的結構相似度</b>，是固定值，不隨訓練改變</td><td>來自<b>模型當下的分類器輸出</b>，會隨訓練不斷變動</td></tr>
+    <tr><td style="text-align:left;">角色</td><td>衡量序列「語意上離真實標籤有多近」→ 決定該序列<b>應該</b>是多難的負樣本</td><td>衡量模型「當下實際上」對這條序列有多 confident</td></tr>
+  </table>
+
+  <h4>2. 兩者如何被連結：F1 定順序，P 做選擇與計算損失</h4>
+  <p><b>第一步（用 F1）：</b>先用 F1 把所有負樣本序列分組、排序——這是一個<b>與模型無關、事先就能算出的「難度基準」</b>。F1 越高（離真實標籤越近），概念上越容易和真實標籤搞混，理論上模型「應該」給它較高的機率。這個排序後續會用在式8的邊界間隔 λᵢⱼ = (j−i)×λ 中，排名差距越大，要求的機率差距（margin）也越大。</p>
+  <p><b>第二步（用 P）：</b>在「F1 相同」的同一組內，才去看模型<b>目前</b>對哪個序列給出的預測機率 P 最高，把它挑出來當作這一輪的負樣本。</p>
+
+  <div class="keypoint">
+  <b>為什麼要這樣設計？</b>如果只看 F1，選出的負樣本每個 epoch 都一樣（因為 F1 不會變），訓練會缺乏動態性。加入 P 之後，即使兩個序列 F1 相同（語意上一樣接近真實標籤），模型也可能因為當下的參數狀態，對其中一個給出特別高的機率——這代表<b>這正是模型目前最容易搞混、最該被糾正的那個</b>。挑它作負樣本，等於每一輪都在攻擊模型當下最脆弱之處，這就是論文所說的「動態選擇最具挑戰性的負樣本」。
+  </div>
+
+  <h4>3. 損失函數如何把兩者串起來</h4>
+  <p>式7、式8 的 hinge loss 實際運算用的是 <b>P</b>（不是 F1）：式7（正–負對比）要求真實標籤的 P<sub>p</sub> 比負樣本的 P<sub>j</sub> 高出至少 λ；式8（負–負對比）要求排名 i 的 P<sub>i</sub> 比排名 j（j>i，即 F1 較低、離真實標籤較遠）的 P<sub>j</sub> 高出至少 λᵢⱼ。而排名 i, j 這個順序，正是<b>由 F1 分數的排序決定的</b>。</p>
+  <div class="keypoint">
+  換句話說：<b>F1 負責畫出「理想上機率應該呈現的遞減順序」，訓練損失則強迫模型的實際輸出機率 P 去逼近這個順序</b>——離真實標籤越遠（F1 越低）的序列，模型給的機率就必須被壓得越低，且壓低的幅度（margin）還會隨排名差距擴大。簡言之：<b>F1 是「應該多像」，P 是「模型覺得多像」</b>，訓練目標就是讓「模型覺得」逐漸貼合「應該」的順序，並優先修正模型當下判斷偏差最大（P 虛高）的那個負樣本。
+  </div>
+
+  <h4>4. 為什麼會出現「F1 相同」的一整組序列？</h4>
+  <p>對標籤樹做 DFS 後，<b>每一個標籤</b>都會生成一條「從第一層走到它自己」的序列。也就是說，若標籤總數是 |L|（WOS 141、NYT 166、RCV1 103），就會產生 |L| 條序列，其中只有一條（或多路徑資料集中的少數幾條）等於真實標籤本身，其餘都進入負樣本集合 S。</p>
+  <p>而 F1 本質上是一個<b>離散、容易重複</b>的數值，因為 Precision、Recall 都是「重疊標籤數 ÷ 序列長度」這種<b>整數比值</b>算出來的。由於真實標籤集合通常很小（表1顯示 NYT 平均每筆樣本只有 7.6 個標籤、RCV1 只有 3.24 個），每條序列的長度也有限（等於該標籤在樹中的深度，通常 2～8 層），「重疊數／長度」的可能組合數量本來就非常有限。</p>
+
+  <div class="example">
+  <b>舉例：</b>假設真實標籤路徑是 <code>Root→News→U.S.→Midwest</code>（4層，4個標籤）。
+  <ul style="margin:8px 0 0 1.2em;padding:0;">
+    <li>序列A（標籤「Sports」的路徑）：<code>Root→News→Sports</code>，與真實標籤重疊 2 個（Root、News），長度 3。</li>
+    <li>序列B（標籤「Education」的路徑）：<code>Root→News→U.S.→Education</code>，重疊 3 個（Root、News、U.S.），長度 4。</li>
+  </ul>
+  只要「重疊數／長度」的組合一致，即使是完全不同標籤的序列，也可能算出<b>一模一樣</b>的 F1 值。
+  </div>
+
+  <p>由於全部標籤動輒上百個，而 F1 的可能取值卻被「重疊數」「序列長度」這兩個小整數限制住，依鴿籠原理，<b>上百條序列擠進少數幾個可能的 F1 數值裡，自然會出現大量分數相同的序列</b>——尤其是那些跟真實標籤完全沒有重疊的序列（F1=0），這類序列通常會佔負樣本集合中最大的一群（可對照圖2範例中 F1=0.8、F1=0.5、F1=0 三組，其中 F1=0 那組列出好幾個標籤）。</p>
+
+  <h4>5. 這正是「負–負樣本」比較機制存在的原因</h4>
+  <p>如果每個 F1 分數都只對應一條序列，那其實會退化成一個簡單的全序排列，不需要額外機制。正是因為<b>同一 F1 分數底下常聚集了一整群語意上「同樣接近／同樣遠離」真實標籤的序列</b>，才需要：</p>
+  <ol style="margin:0 0 6px 1.4em;padding:0;">
+    <li>先把它們分到同一組（因為從 F1／語意角度看，這組序列「應該」被賦予差不多的機率）；</li>
+    <li>組內再用<b>當下的模型預測機率 P</b> 決定「這一輪」該挑哪一個當負樣本（因為 F1 分不出組內誰更該被優先糾正，只有模型自己的即時輸出才知道）。</li>
+  </ol>
+  <div class="keypoint">
+  簡言之：<b>「F1 分組」處理的是組間的難度排序，「P 動態挑選」處理的是組內的即時挑戰性</b>——兩者互補，才不會浪費掉那些理論上「同樣重要」但模型表現各異的負樣本。
+  </div>
+</div>
+
+<p>綜上，對比學習的總損失函數可表示為式9。「正–負樣本」比較策略與「負–負樣本」比較策略的整合，能全面提升模型在 HTC 任務上的表現——此方法不僅優化了模型的特徵表示與分類能力，也為複雜階層標籤結構中對比學習的應用提供了新的思路與方法。</p>
+<div class="formula">L<sub>HiSR</sub> = L<sub>pn</sub> + L<sub>nn</sub>　　（式9）</div>
+
+<h3 class="sub">3.5　分類損失與目標函數</h3>
+<p>依循既有研究做法，本文採用二元交叉熵損失函數 L<sup>C</sup> 進行分類：</p>
+<div class="formula">L<sub>ij</sub><sup>C</sup> = −y<sub>ij</sub>log(p<sub>ij</sub>) − (1−y<sub>ij</sub>)log(1−p<sub>ij</sub>)　　（式10）</div>
+<div class="formula">L<sup>C</sup> = Σ<sub>i=1</sub><sup>N</sup> Σ<sub>j=1</sub><sup>k</sup> L<sub>ij</sub><sup>C</sup>　　（式11）</div>
+<p>其中 y<sub>ij</sub> 為真實標籤，L<sub>ij</sub><sup>C</sup> 與 p<sub>ij</sub> 分別為文本 i 在標籤 j 上的二元交叉熵損失與預測機率。</p>
+<p>訓練的最終損失函數，是分類損失與 HiSR 損失的組合：</p>
+<div class="formula">L = L<sup>C</sup> + α L<sub>HiSR</sub>　　（式12）</div>
+<p>其中 α 為平衡 HiSR 損失權重的超參數。</p>
+</section>
+
+<section id="s4">
+<h2 class="sec">4　實驗</h2>
+
+<h3 class="sub">4.1　資料集與評估指標</h3>
+<p>本研究採用三個廣泛使用的資料集，以確保實驗結果的通用性與可靠性：Web of Science（WOS）、RCV1、New York Times（NYT）。RCV1 與 NYT 為新聞領域的文本分類資料集，WOS 則由 Web of Science 收錄的研究論文摘要組成，三者皆標註有階層標籤。所有資料前處理與資料切分皆沿用既有研究的設定。值得注意的是，WOS 適用於單路徑（single-path）HTC 架構，而 RCV1 與 NYT 則屬於多路徑（multi-path）分類標籤。三個資料集的詳細統計資訊見表1。依循既有研究，本文採用相同的評估指標：Macro-F1 與 Micro-F1。</p>
+
+<table>
+<caption>表1　三個資料集的詳細資訊</caption>
+<tr><th>資料集</th><th>|L|（類別數）</th><th>深度（最大階層數）</th><th>Avg(|Lᵢ|)（每筆樣本平均類別數）</th><th>訓練集</th><th>驗證集</th><th>測試集</th></tr>
+<tr><td>RCV1</td><td>103</td><td>4</td><td>3.24</td><td>20,833</td><td>2,316</td><td>781,265</td></tr>
+<tr><td>WOS</td><td>141</td><td>2</td><td>2.0</td><td>30,070</td><td>7,518</td><td>9,397</td></tr>
+<tr><td>NYT</td><td>166</td><td>8</td><td>7.6</td><td>23,345</td><td>5,834</td><td>7,292</td></tr>
+</table>
+
+<h3 class="sub">4.2　基準方法（Baselines）</h3>
+<p>為驗證本文方法的效能，選取以下具代表性的基準方法：</p>
+<p><b>HiAGM</b>：利用階層感知的多標籤注意力機制，運用標籤依賴的先驗機率生成混合特徵。<br>
+<b>HTCInfoMax</b>：透過資訊最大化增強 HiAGM，建模文本與階層間的互動，優化文本–標籤互資訊，並將標籤表示正則化以貼近先驗分佈。<br>
+<b>HiMatch</b>：將問題視為語意匹配任務，在聯合嵌入空間中對齊文本與標籤表示，並以此聯合表示進行分類。<br>
+<b>HGCLR</b>：透過對比學習增強編碼器表示，並引入新的圖編碼器以提取階層標籤資訊。<br>
+<b>HPT</b>：一種階層感知的提示調校（Prompt Tuning）方法，建構動態虛擬模板與標籤詞，並引入零邊界多標籤交叉熵損失。<br>
+<b>HJCL</b>：結合實例層級與標籤層級的對比學習技術。<br>
+<b>HALB</b>：採用多標籤負向監督方法以強化文本表示對標籤階層的感知，並引入非對稱損失函數解決標籤不均衡問題。<br>
+<b>NERHTC</b>：將 HTC 轉化為命名實體識別（NER）任務，結合條件隨機場（CRF）與 Global Pointer 建立階層依賴關係。</p>
+
+<h3 class="sub">4.3　實作細節</h3>
+<p>本研究以 PyTorch 框架端到端實作模型，選用 Zhou et al.（2020）提出的 HiAGM-TP 變體，將其文本編碼器替換為 Hugging Face Transformers 函式庫中的 <span class="orig-term">bert-base-uncased</span>，其餘預設參數均維持原論文設定。</p>
+<p>實驗中，WOS 與 RCV1 的批次大小（batch size）設為 8，NYT 則設為 4；採用 Adam 優化器，學習率設為 1e-5。訓練階段採用提前停止（early stopping）策略：依每個 epoch 後模型在驗證集上的表現，若兩項 F1 分數連續六個 epoch 均未提升，即立即終止訓練。</p>
+<p>在對比學習部分，權重 α 設為 0.01；「負樣本–負樣本」的間隔 λ 設為 0.15，「正樣本–負樣本」的間隔設為 0.5。</p>
+
+<h3 class="sub">4.4　實驗結果</h3>
+<p>本文方法在三個資料集上的實驗結果，以及與既有研究的比較，如表2所示。為確保比較公允，部分基準結果為在相同設備上重新實作所得。<b>除 NYT 外，本文方法均達到 SOTA 表現。</b></p>
+
+<table>
+<caption>表2　本文模型在三個資料集上的評估結果，並與既有研究比較（三次獨立試驗之平均值，粗體為最佳結果）</caption>
+<tr><th rowspan="2">模型</th><th colspan="2">WOS</th><th colspan="2">NYT</th><th colspan="2">RCV1-V2</th></tr>
+<tr><th>Micro-F1</th><th>Macro-F1</th><th>Micro-F1</th><th>Macro-F1</th><th>Micro-F1</th><th>Macro-F1</th></tr>
+<tr><td colspan="7" style="background:#f3e9db;text-align:left;font-weight:bold;">階層感知模型（Hierarchy-Aware Models）</td></tr>
+<tr><td>HiAGM</td><td>85.82</td><td>80.28</td><td>74.97</td><td>60.83</td><td>83.96</td><td>63.35</td></tr>
+<tr><td>HTCInfoMax</td><td>85.58</td><td>80.05</td><td>-</td><td>-</td><td>83.51</td><td>62.71</td></tr>
+<tr><td>HiMatch</td><td>86.20</td><td>80.53</td><td>-</td><td>-</td><td>84.73</td><td>64.11</td></tr>
+<tr><td colspan="7" style="background:#f3e9db;text-align:left;font-weight:bold;">預訓練語言模型（Pretrained Language Models）</td></tr>
+<tr><td>BERT（本文實作）</td><td>85.72</td><td>79.34</td><td>77.64</td><td>65.91</td><td>85.77</td><td>67.04</td></tr>
+<tr><td>BERT+HiAGM（本文實作）</td><td>86.32</td><td>80.67</td><td>78.27</td><td>66.04</td><td>86.37</td><td>67.14</td></tr>
+<tr><td>BERT+HTCInfoMax</td><td>86.30</td><td>79.97</td><td>78.75</td><td>67.31</td><td>85.53</td><td>67.09</td></tr>
+<tr><td>BERT+HiMatch</td><td>86.70</td><td>81.06</td><td>-</td><td>-</td><td>86.33</td><td>68.66</td></tr>
+<tr><td>HGCLR</td><td>87.11</td><td>81.20</td><td>78.86</td><td>67.96</td><td>86.49</td><td>68.31</td></tr>
+<tr><td>HPT</td><td>87.16</td><td>81.93</td><td>80.42</td><td>70.42</td><td>87.26</td><td>69.53</td></tr>
+<tr><td>HJCL</td><td>-</td><td>-</td><td>80.52</td><td>70.02</td><td>87.04</td><td>70.49</td></tr>
+<tr><td>HALB</td><td>87.45</td><td class="bold-cell">82.04</td><td>79.56</td><td>69.28</td><td>86.94</td><td>69.32</td></tr>
+<tr><td>NERHTC</td><td>87.42</td><td>81.93</td><td class="bold-cell">80.97</td><td class="bold-cell">70.99</td><td>87.5</td><td>69.76</td></tr>
+<tr><td><b>HiSR（本文）</b></td><td class="bold-cell">87.52</td><td class="bold-cell">82.04</td><td>80.32</td><td>70.11</td><td class="bold-cell">87.59</td><td class="bold-cell">70.72</td></tr>
+</table>
+
+<p>HiSR 在所有資料集上皆較 BERT 有顯著提升。在 <b>WOS</b> 上，較 BERT 提升 Micro-F1 1.8%、Macro-F1 2.7%；較 NERHTC 提升 Micro-F1 0.1%、Macro-F1 0.11%——WOS 的兩層階層結構與 HiSR 特性契合，有利於高效建構合適的樣本集合，因而表現穩健。</p>
+<p>在 <b>RCV1</b> 上（四層結構、測試集最大），HiSR 較 BERT 提升 Micro-F1 1.82%、Macro-F1 3.68%；較 NERHTC 提升 Micro-F1 0.09%、Macro-F1 0.96%。</p>
+<p>在 <b>NYT</b> 上，儘管其多路徑、多標籤特性對 HiSR 構成挑戰，仍取得顯著提升：較 BERT 提升 Micro-F1 2.68%、Macro-F1 4.2%。這些結果一致證明了本文模型在不同結構與複雜度資料集上的有效性。</p>
+</section>
+
+<section id="s5">
+<h2 class="sec">5　分析</h2>
+
+<h3 class="sub">5.1　消融實驗（Ablation Study）</h3>
+<p>為證明本文方法的有效性，在 RCV1 上進行消融實驗，結果見表3。模型的核心組件為 HiSR：移除後，Macro-F1 大幅下降 3.58%，Micro-F1 下降 1.22%，顯示 HiSR 的顯著效果。此外，GCN 作為編碼階層結構的圖編碼器，移除後 Micro-F1 與 Macro-F1 分別下降 1.06% 與 2.27%，顯示階層編碼在 HTC 中不可或缺。</p>
+
+<table>
+<caption>表3　RCV1 上的消融實驗（−r.m. 表示移除，−r.p. 表示替換為）</caption>
+<tr><th>消融模型</th><th>Micro-F1</th><th>Macro-F1</th></tr>
+<tr><td>BERT</td><td>85.77</td><td>67.04</td></tr>
+<tr><td><b>HiSR（本文）</b></td><td class="bold-cell">87.59</td><td class="bold-cell">70.72</td></tr>
+<tr><td>−r.m. HiSR</td><td>86.37</td><td>67.14</td></tr>
+<tr><td>−r.m. GCN</td><td>86.53</td><td>68.45</td></tr>
+</table>
+
+<h3 class="sub">5.2　局部結構的影響</h3>
+<p>本文方法旨在解決 HTC 研究中常見的「難以區分細粒度標籤」問題。為此，本文從<b>路徑一致性</b>與<b>標籤粒度</b>兩方面進行進一步實驗。</p>
+
+<h4 style="margin-top:18px;">5.2.1　路徑一致性（Path Consistency）</h4>
+<p>細粒度標籤分類失誤，可能導致「路徑不一致」——即父節點預測正確而子節點預測錯誤，或子節點預測正確而同一路徑上的父節點預測錯誤。依循既有研究，本文採用<b>路徑約束指標（path-constrained metrics）</b>與<b>路徑基礎指標（path-based metrics）</b>來評估本方法解決路徑不一致問題的效果，進一步證明本方法能有效應對細粒度標籤誤分類的挑戰。</p>
+<p>在路徑約束指標（CMicro-F1、CMacro-F1）中，唯有當一個節點的所有祖先節點皆被正確預測時，該節點才被視為預測正確。路徑基礎指標（PMicro-F1、PMacro-F1）則用於評估整條路徑上所有標籤的正確性，但僅適用於「強制葉節點（mandatory-leaf）」資料集，如 WOS。</p>
+<p>在三個資料集上的進一步實驗結果見表4與表5。路徑約束指標與路徑基礎指標皆適用於 WOS，且本模型在 WOS 上也達到 SOTA，顯示本方法在如 WOS 這類兩層結構資料集上表現優異。而在 RCV1 與 NYT 上僅能使用路徑約束指標：在 RCV1 上，HiSR 一如預期地超越所有既有模型；然而 NYT 的八層複雜結構與大量標籤，對 HiSR 構成一定挑戰。</p>
+
+<table>
+<caption>表4　WOS 上路徑基礎與路徑約束指標的進一步實驗</caption>
+<tr><th rowspan="2">模型</th><th colspan="2">WOS（路徑基礎）</th><th colspan="2">WOS（路徑約束）</th></tr>
+<tr><th>PMicro-F1</th><th>PMacro-F1</th><th>CMicro-F1</th><th>CMacro-F1</th></tr>
+<tr><td>BERT</td><td>79.96</td><td>78.40</td><td>85.43</td><td>79.37</td></tr>
+<tr><td>HPT</td><td>80.69</td><td>79.03</td><td>86.57</td><td>80.85</td></tr>
+<tr><td>NERHTC</td><td>81.41</td><td>79.52</td><td>87.14</td><td>81.36</td></tr>
+<tr><td><b>HiSR（本文）</b></td><td class="bold-cell">81.66</td><td class="bold-cell">80</td><td class="bold-cell">87.29</td><td class="bold-cell">81.56</td></tr>
+</table>
+
+<table>
+<caption>表5　RCV1 與 NYT 上路徑約束指標的進一步實驗</caption>
+<tr><th rowspan="2">方法</th><th colspan="2">RCV1-V2</th><th colspan="2">NYT</th></tr>
+<tr><th>CMicro-F1</th><th>CMacro-F1</th><th>CMicro-F1</th><th>CMacro-F1</th></tr>
+<tr><td>BERT</td><td>85.68</td><td>66.96</td><td>78.05</td><td>64.62</td></tr>
+<tr><td>HPT</td><td>86.95</td><td>68.15</td><td>79.51</td><td>68.38</td></tr>
+<tr><td>NERHTC</td><td>86.99</td><td>68.46</td><td class="bold-cell">80.11</td><td class="bold-cell">69.42</td></tr>
+<tr><td><b>HiSR（本文）</b></td><td class="bold-cell">87.12</td><td class="bold-cell">69.81</td><td>79.14</td><td>68.16</td></tr>
+</table>
+
+<h4 style="margin-top:18px;">5.2.2　標籤粒度（Label Granularity）</h4>
+<p>本文依標籤的階層層級分析模型在不同粒度下的表現，計算 NYT 資料集上 BERT、HPT 與本文模型逐層的 Micro-F1 與 Macro-F1（結果見圖3）。由於 NERHTC 未開源程式碼、亦未在論文中報告逐層粒度的具體結果，故比較中未納入 NERHTC。</p>
+<p>NYT 共八層，各層標籤數依序為 4、27、51、47、17、12、6、2。可觀察到第二至第四層標籤數量較多，且包含概念相近而易混淆的標籤，因此這幾層的兩項指標均快速下降；同時，隨著層級加深，標籤粒度變得更細，儘管標籤數量減少，模型表現仍進一步下滑。根據圖3，本模型在第三層略遜於 HPT，但其餘各層均優於其他模型，且在更深層級中與其他模型的差距更為明顯，充分證明了本方法在提升模型區分細粒度標籤能力上的有效性。</p>
+
+<div class="figure-note">
+<b>圖3說明：</b>兩張折線圖分別展示 NYT 各層級（第1–8層）的 Micro-F1 與 Macro-F1 比較（BERT、HPT、HiSR 三條曲線）。整體趨勢隨層級加深（粒度變細）而下降；HiSR 曲線在大多數層級高於 BERT 與 HPT，且在深層（後段層級）優勢更明顯。
+</div>
+</section>
+
+<section id="s6">
+<h2 class="sec">6　結論</h2>
+<p>本文提出一種名為<b>階層序列排序（HiSR）</b>的負樣本生成方法，為對比學習提供高品質的負樣本，藉此解決 HTC 任務中普遍存在的「相似細粒度標籤難以區分」問題。HiSR 生成的負樣本不僅能將細粒度標籤間的細微差異傳遞給模型，其依序性特徵所引入的「負樣本–負樣本」比較，也有助於模型更深入理解標籤層級間的複雜關係。HiSR 為建構階層結構資料的負樣本提供了一種新思路。實驗顯示，HiSR 相較所選基準方法取得了一致的效能提升，並在部分資料集上達到 SOTA 表現。</p>
+
+<h3 class="sub">限制（Limitations）</h3>
+<p>實驗結果顯示 HiSR 能提升模型對細粒度標籤的區分能力，但在 NYT 資料集上並未達到 SOTA。作者推測，這是由於 NYT 層數過多，且存在多條不同長度的路徑，導致 HiSR 難以構造出完美的負樣本；此外，所採用的排序指標也可能並非最優解。作者表示將在未來工作中進一步研究上述問題。</p>
+
+<h3 class="sub">倫理聲明（Ethics Statement）</h3>
+<p>本研究所使用的所有資料，均取自先前已公開釋出、供學術與研究用途的公開資料集。</p>
+
+<div class="ref-note">
+<b>致謝與參考文獻：</b>原文致謝部分列出本研究獲得之多項基金資助（包括國家自然科學青年基金、浙江省自然科學基金青年項目、浙江省教育廳科研項目、浙江省「領雁」研發計畫及地方科技發展基金專案等），以及約60篇參考文獻（涵蓋 HiAGM、HTCInfoMax、HiMatch、HGCLR、HPT、HJCL、HALB、NERHTC 等本文比較之基準方法原始出處，以及 BERT、GCN、對比學習等相關基礎文獻）。由於參考文獻條目為書目資訊而非論述內容，此處不另作翻譯，如需查閱請參照原始 PDF 第5653–5655頁。
+</div>
+</section>
+
+<footer>
+本頁為 COLING 2025 論文〈A Novel Negative Sample Generation Method for Contrastive Learning in Hierarchical Text Classification〉之中文翻譯整理，僅供個人學習參考之用。原文版權歸原作者與 ACL Anthology 所有。
+</footer>
+
+</div>
+</div>
+
+<script>
+  const sections = document.querySelectorAll('section[id]');
+  const links = document.querySelectorAll('#tocNav a[data-target]');
+  function setActive(id){
+    links.forEach(l => l.classList.toggle('active', l.dataset.target === id));
+  }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        setActive(entry.target.id);
+      }
+    });
+  }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+  sections.forEach(sec => observer.observe(sec));
+
+  links.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const target = document.getElementById(link.dataset.target);
+      if(target){
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RADAr：階層式文本分類的自迴歸解碼器架構（中文翻譯）</title>
+<style>
+  :root {
+    --bg: #faf9f7;
+    --panel: #ffffff;
+    --ink: #2b2620;
+    --ink-soft: #5c554c;
+    --accent: #8a5a3b;
+    --accent-soft: #f1e3d3;
+    --border: #e6ddd0;
+    --code-bg: #f4efe6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    display: flex;
+    min-height: 100vh;
+  }
+  /* Sidebar */
+  #sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  #sidebar h1 {
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 0 20px 16px 20px;
+    margin: 0 0 12px 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--accent);
+  }
+  #sidebar nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0 8px;
+  }
+  #sidebar nav li { margin: 2px 0; }
+  #sidebar nav a {
+    display: block;
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  #sidebar nav a.sub {
+    font-size: 13px;
+    padding-left: 24px;
+    color: #7a7266;
+  }
+  #sidebar nav a:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  #sidebar nav a.active {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  /* Main content */
+  #main {
+    flex: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 48px 80px 48px;
+  }
+  .section { display: none; }
+  .section.active { display: block; animation: fadeIn 0.25s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: translateY(0);} }
+
+  h2.sec-title {
+    font-size: 24px;
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent-soft);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  h3.sub-title {
+    font-size: 18px;
+    color: var(--ink);
+    margin-top: 28px;
+    border-left: 4px solid var(--accent);
+    padding-left: 10px;
+  }
+  p { line-height: 1.9; margin: 14px 0; font-size: 15.5px; }
+  .en-title {
+    font-size: 13px;
+    color: #9a9284;
+    margin: -8px 0 20px 0;
+    font-style: italic;
+  }
+  .note-box {
+    background: var(--accent-soft);
+    border-left: 4px solid var(--accent);
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    margin: 18px 0;
+    color: #5c4530;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 20px 0;
+    font-size: 13.5px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: center;
+    line-height: 1.5;
+  }
+  th { background: var(--accent-soft); color: var(--accent); }
+  td.left { text-align: left; }
+  .fig-desc {
+    background: var(--code-bg);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    margin: 18px 0;
+  }
+  .algo {
+    background: var(--code-bg);
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-family: "Courier New", monospace;
+    font-size: 13.5px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    margin: 18px 0;
+  }
+  .top-meta {
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 30px;
+    line-height: 1.7;
+  }
+  .nav-arrows {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .nav-arrows button {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .nav-arrows button:hover { background: var(--accent-soft); }
+  .nav-arrows button:disabled { opacity: 0.3; cursor: default; }
+  @media (max-width: 768px) {
+    body { flex-direction: column; }
+    #sidebar { width: 100%; height: auto; position: relative; }
+    #main { padding: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h1>RADAr 論文導讀<br><span style="font-weight:400;font-size:12px;">階層式文本分類</span></h1>
+  <nav>
+    <ul id="toc"></ul>
+  </nav>
+</div>
+
+<div id="main">
+  <div class="top-meta">
+    <strong>原文標題：</strong>RADAr: A Transformer-Based Autoregressive Decoder Architecture for Hierarchical Text Classification<br>
+    <strong>作者：</strong>Yousef Younes, Lukas Galke, Ansgar Scherp<br>
+    <strong>發表：</strong>ECAI 2024（歐洲人工智慧會議）<br>
+    <strong>原始碼：</strong>https://github.com/yousef-younes/RADAr
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="nav-arrows">
+    <button id="prevBtn">← 上一節</button>
+    <button id="nextBtn">下一節 →</button>
+  </div>
+</div>
+
+<script>
+const sections = [
+{ id: "abstract", title: "摘要", en: "Abstract", body: `
+<p>近期的階層式文本分類（HTC）方法大多依賴預訓練 Transformer 模型的能力，並利用標籤語意與圖神經網路來編碼標籤階層結構。本文提出一個高效的階層式文本分類器 <strong>RADAr</strong>（基於 Transformer 的自迴歸解碼器架構），它僅使用現成的 RoBERTa Transformer 來處理輸入文本，並搭配一個自訂的、僅有兩層的自迴歸解碼器來產生分類結果。</p>
+<p>與現有方法不同，RADAr 的編碼器並未明確編碼標籤階層結構，解碼器完全仰賴訓練樣本中觀察到的標籤序列來學習。研究團隊在三個基準資料集上證明，RADAr 能以更少的訓練與推論時間，達到與最先進方法相當的效果。</p>
+<p>本模型在「由子標籤到父標籤」的順序組織標籤序列時，表現持續優於現有方法所採用的反向順序（父到子）。實驗顯示，標籤語意與明確的階層圖編碼器其實都非必要。這項發現對於 HTC 具有重要的實務意義：架構需求更少，且推論速度可提升達兩倍。此外，將解碼器從零開始獨立訓練、同時微調編碼器的作法，讓未來的研究者與實務工作者能夠隨時替換編碼器，以銜接新模型的發展。</p>
+` },
+
+{ id: "intro", title: "1. 導論", en: "1 Introduction", body: `
+<p>階層式文本分類（Hierarchical Text Classification, HTC）處理的是根據語意階層來標記文本樣本的任務，其中標籤（類別）之間存在「一般化—特殊化」的關係。與將標籤視為扁平集合的多標籤文本分類不同，HTC 模型不僅需要利用文本樣本本身，也必須在訓練過程中學習標籤的階層結構。</p>
+<p>形式上，HTC 中的標籤集合 H 依循父子關係組織成階層結構。每個標籤代表一個主題類別，其語意在於：父標籤代表較廣泛的類別，子標籤則代表較specific的類別。當階層 H 組織為樹狀結構時，除了根標籤外，每個標籤 c∈H 都恰好只有一個父標籤。HTC 方法的目標，是針對給定文本實例預測出一個子集合 L⊆H，其中包含一個或多個與該文本相關、並考慮到階層關係的標籤。</p>
+<p>HTC 方法可依其在訓練過程中如何利用階層資訊、以及使用多少分類器，區分為全域式（global）與局部式（local）方法。局部方法為每個標籤或每個層級各自訓練一個分類器；全域方法則以單一分類器處理所有標籤。整體而言，全域方法的表現通常優於局部方法。</p>
+<p>近期的 HTC 方法通常以預訓練 Transformer 模型作為架構基礎。像 HiAGM、HTCInfoMax、HiMatch 等全域式 HTC 模型，通常分別建模標籤階層與文本，再找出兩者的混合表示；這意味著每個文本樣本都必須與整個標籤階層互動，導致不必要的計算量。HGCLR 部分解決了此問題，它利用 Graphormer 將階層資訊與文本一同編碼，產生「階層感知」的文本表示，使得 Graphormer 在測試階段可以省略。近期的全域模型 HBGL 則透過將階層資訊整合進 BERT，達到最先進的效果：它先在階層中隨機採樣路徑來預訓練標籤嵌入，再利用條件式生成（conditional generation），根據文本預測標籤。</p>
+<p>此外，大型語言模型（LLM，如 GPT-4）近期也被用於將 HTC 任務建模為選擇題來處理。研究顯示，即使面對僅有 17 個標籤的小型階層，GPT-4 的準確率仍無法超過 50%。然而，文本分類相關文獻顯示 LLM 是強大的文本分類器，尤其是在僅提供少量上下文範例（in-context learning）的情況下；但這樣的效能是以龐大參數量為代價，且未必優於較小的模型。舉例來說，Yu 等人比較了僅解碼器模型（decoder-only，如 GPT-4 與 Llama 2）與僅編碼器模型（encoder-only，如 RoBERTa）在三個分類任務上的表現，結論是僅編碼器模型表現更佳。</p>
+<p>HTC 模型的成功，很大程度上歸功於運用標籤名稱中蘊含的語言學知識（即「標籤語意」），以及使用圖神經網路明確編碼標籤階層結構。例如，主流的 HTC 方法如 HiAGM、HiMatch 與 HGCLR 都採用圖神經網路來處理階層，而 HBGL 則利用階層的鄰接矩陣來約束 Transformer 層的注意力機制。</p>
+<p>本文對於這類特徵是否真的必要提出質疑，並提出一個高效的序列到序列模型 <strong>RADAr</strong>——它以現成的預訓練 Transformer 作為編碼器，搭配一個相對簡單的自迴歸解碼器，因此不需要任何用於標籤階層的圖編碼器。解碼器根據訓練樣本，學習依循階層組織排列的標籤序列。由於使用的是符號化標籤（symbolic labels）而非標籤原始文字，這些符號本身不提供任何額外的語言學知識，因此本方法並不利用標籤語意。</p>
+<p>本文的主要貢獻如下：</p>
+<p>• 提出 RADAr 用於階層式文本分類，使用 RoBERTa 作為編碼器，搭配僅兩層的自訂自迴歸解碼器。與現有方法不同，RADAr 既不需要標籤階層的圖編碼器，也不依賴標籤語意。<br>
+• 在三個 HTC 資料集上的實驗結果證實 RADAr 的有效性，其訓練時間顯著較短，推論時間更僅需一半，卻能達到與最先進方法相當的結果。<br>
+• 與現有多數將標籤由父到子排序的 HTC 方法不同，本文證明由子到父的反向順序能持續產生更好的結果。</p>
+` },
+
+{ id: "related", title: "2. 相關工作", en: "2 Related Work", body: `
+<p>HTC 模型可分為局部式與全域式兩類。近年來，隨著詞嵌入與預訓練語言模型的興起，研究重心轉向全域式模型，因為它們鼓勵更通用的解決方案。由於表現最佳的 HTC 模型（如 HBGL、HGCLR）皆屬全域式方法，本文的討論聚焦於此類方法。</p>
+<p>以下依模型架構將相關方法分為「僅編碼器」與「編碼器-解碼器」兩大類，並依五個面向進行比較（詳見表一）：(i) 是否使用資料集提供的標籤階層（或將標籤視為集合）；(ii) 是否採用圖編碼器來表示階層；(iii) 模型接收標籤的順序（父到子或反之）；(iv) 是否使用標籤語意（即標籤的文字描述）；(v) 所使用的損失函數。</p>
+
+<h3 class="sub-title">僅編碼器模型（Encoder-only Models）</h3>
+<p>BERT、RoBERTa 等僅編碼器 Transformer 模型，在監督式設定下展現優異的分類效能，即使不考慮標籤階層，這類模型在 HTC 任務上表現依然良好。</p>
+<p><strong>BERT</strong> 將標籤編碼為 multi-hot 向量，與對應文本一同輸入模型，再透過分類頭進行預測——這種作法忽略了階層結構，等同於將標籤視為多標籤任務中的集合。</p>
+<p><strong>RoBERTa</strong> 是 BERT 的優化版本，捨棄了「下一句預測」訓練目標，並使用更多資料進行訓練。由於效能優異，僅編碼器模型成為許多 HTC 方法的基礎。</p>
+<p><strong>HiAGM</strong> 使用兩個編碼器——一個處理文本，一個編碼標籤階層，提供 Tree-LSTM 與 GCN 兩種階層編碼器變體，並雙向建模標籤依賴關係（父到子與子到父）。損失函數結合遞迴正則化（recursive regularization）與二元交叉熵（BCE）。</p>
+<p><strong>HTCInfoMax</strong> 建立在 HiAGM 的變體上，損失函數結合文本-標籤互資訊最大化（MIM）、標籤先驗匹配與 BCE，透過 MIM 改善文本與標籤的關聯性，並透過統計限制改善低頻標籤的表示，以緩解 HTC 中常見的標籤不平衡問題。</p>
+<p><strong>HiMatch</strong> 以 GCN 作為圖編碼器，將文本-標籤關聯視為語意匹配問題，其三部分損失函數包含：對齊文本與標籤語意的聯合嵌入損失、強調子標籤語意應比父標籤更貼近文本語意的階層感知匹配損失，以及用於學習文本-標籤關係的交叉熵損失。</p>
+<p><strong>HGCLR</strong> 利用改良版 Graphormer 將階層資訊融入 BERT 的文本表示，並運用階層資訊建構對比學習所需的正樣本，採用 NT-Xent 損失來學習階層感知的文本表示。在預測階段，模型僅需文本編碼器，不需 Graphormer，因此本質上等同於一個帶分類頭的 BERT 編碼器。</p>
+<p><strong>HBGL</strong> 是目前最先進的階層式文本分類器，以兩階段方式運用僅編碼器的 BERT：首先根據階層預訓練標籤向量，接著微調 BERT 模型與這些預訓練標籤向量以預測對應標籤；此預測以逐層方式進行，並透過限制注意力矩陣來實現，訓練過程使用 BCE 損失。</p>
+
+<h3 class="sub-title">編碼器-解碼器模型（Encoder-Decoder Models）</h3>
+<p>此類模型將 HTC 任務視為文本生成問題，由負責處理文本輸入的編碼器，與負責生成對應標籤的解碼器組成。</p>
+<p><strong>SGM</strong> 是搭配注意力機制的 Bi-LSTM 編碼器-解碼器模型，編碼器利用注意力機制產生聚焦於關鍵詞彙的上下文向量，解碼器則結合上下文向量、前一步的隱藏狀態與標籤嵌入向量來生成當前步驟的隱藏狀態。SGM 沒有圖編碼器，但受益於標籤語意，並使用交叉熵損失。</p>
+<p><strong>BART</strong> 是基於 Transformer 的編碼器-解碼器模型，編碼器類似 BERT，解碼器則類似 GPT 的自迴歸架構。雖然沒有圖編碼器，本文仍將其應用於 HTC，把任務視為文本生成問題來處理，因為 BART 在微調用於文本生成任務時效果良好。模型依據微調時所使用的順序來生成標籤，並利用標籤語意，以交叉熵損失訓練。</p>
+<p><strong>T5</strong> 同樣是基於 Transformer 的編碼器-解碼器模型，以文本到文本（text-to-text）格式支援多種 NLP 任務，每種任務使用不同的前綴提示。與 BART 相似，T5 將 HTC 視為文本生成任務，受益於標籤語意，並使用交叉熵損失。</p>
+<p>BART 與 T5 皆非為 HTC 任務所設計，並未提供明確的圖編碼器，因此在階層式多標籤分類任務中，標籤仍被視為集合處理。本文將其納入作為基準模型，因其即使不考慮階層資訊，仍展現出優異表現。</p>
+<p>另一個考慮標籤階層的方法是 <strong>Seq2Tree</strong>，它是 T5-base 的變體，透過對階層進行深度優先搜尋（DFS）來線性化標籤，捕捉階層資訊。解碼器利用編碼器輸出，一次生成一個 DFS 標籤序列，並考慮階層資訊——換言之，每一步的候選標籤即為前一步預測的父標籤之子標籤。</p>
+
+<h3 class="sub-title">表一：模型比較</h3>
+<p class="en-title">Table 1. Model comparison</p>
+<table>
+<tr><th>模型</th><th>使用標籤階層</th><th>圖編碼器</th><th>標籤順序</th><th>標籤語意</th><th>損失函數</th><th>說明</th></tr>
+<tr><td class="left"><strong>僅編碼器基準模型</strong></td><td colspan="6"></td></tr>
+<tr><td>BERT</td><td>否</td><td>無</td><td>無</td><td>否</td><td>交叉熵</td><td class="left">Transformer 模型</td></tr>
+<tr><td>RoBERTa</td><td>否</td><td>無</td><td>無</td><td>否</td><td>交叉熵</td><td class="left">Transformer 模型</td></tr>
+<tr><td class="left"><strong>編碼器-解碼器基準模型</strong></td><td colspan="6"></td></tr>
+<tr><td>BART</td><td>否</td><td>無</td><td>無</td><td>是</td><td>交叉熵</td><td class="left">基於 Transformer 的去噪自編碼器</td></tr>
+<tr><td>T5</td><td>否</td><td>無</td><td>無</td><td>是</td><td>交叉熵</td><td class="left">基於 Transformer 的文本到文本框架</td></tr>
+<tr><td class="left"><strong>階層式文本分類器（基於預訓練僅編碼器模型）</strong></td><td colspan="6"></td></tr>
+<tr><td>HiAGM</td><td>是</td><td>Tree-LSTM／GCN</td><td>父→子</td><td>是</td><td>BCE + 遞迴正則化</td><td class="left">融合文本分類模型與階層編碼器</td></tr>
+<tr><td>HTCInfoMax</td><td>是</td><td>Tree-LSTM／GCN</td><td>父→子</td><td>是</td><td>文本-標籤 MIM、標籤先驗匹配、BCE</td><td class="left">用 MIM 改善文本-標籤關聯與標籤表示</td></tr>
+<tr><td>HiMatch</td><td>是</td><td>GCN</td><td>父→子</td><td>是</td><td>聯合嵌入、階層感知匹配、交叉熵</td><td class="left">將文本-標籤語意關係建模為語意匹配問題</td></tr>
+<tr><td>HGCLR</td><td>是</td><td>改良版 Graphormer</td><td>父→子</td><td>是</td><td>NT-Xent + BCE</td><td class="left">用對比學習產生階層感知文本表示</td></tr>
+<tr><td>HBGL</td><td>是</td><td>BERT</td><td>父→子</td><td>是</td><td>BCE</td><td class="left">在自注意力層使用注意力遮罩餵入標籤圖</td></tr>
+<tr><td class="left"><strong>階層式編碼器-解碼器模型</strong></td><td colspan="6"></td></tr>
+<tr><td>SGM</td><td>是</td><td>無</td><td>父→子</td><td>是</td><td>交叉熵</td><td class="left">利用標籤相關性與文本-標籤關係</td></tr>
+<tr><td>Seq2Tree</td><td>是</td><td>無</td><td>父→子</td><td>是</td><td>交叉熵</td><td class="left">用 T5 搭配受階層約束的解碼器</td></tr>
+<tr><td><strong>RADAr</strong></td><td>是</td><td>無</td><td><strong>子→父</strong></td><td>否</td><td>Focal 交叉熵</td><td class="left">用 RoBERTa 作編碼器，搭配針對符號標籤的自迴歸解碼器</td></tr>
+</table>
+` },
+
+{ id: "model", title: "3. RADAr 模型", en: "3 The RADAr Model", body: `
+<p>RADAr 是一個基於 Transformer 的編碼器-解碼器模型。理論上任何僅編碼器模型都可作為 RADAr 的編碼器，本文選用 RoBERTa base。解碼器則是從零開始訓練的自迴歸 Transformer 模型，用於生成標籤序列，下一個標籤的輸出以先前的標籤為條件，沿著階層結構生成 HTC 任務所需的標籤。模型採用改良版的 focal loss，讓模型更關注損失較高的困難樣本。</p>
+
+<div class="fig-desc">
+<strong>圖一：RADAr 模型架構（文字描述）</strong><br>
+訓練時的資料流程如下：輸入樣本文本 → RoBERTa 分詞器；輸入符號化標籤 → 標籤分詞器。RoBERTa 分詞器輸出送入 RoBERTa 編碼器產生上下文表示；此表示與標籤分詞器的輸出一同送入解碼器。解碼器輸出經過 LogSoftMax／貪婪搜尋產生標籤序列（推論時），或經 Focal Loss 計算損失（訓練時）。
+</div>
+
+<h3 class="sub-title">編碼器</h3>
+<p>模型使用 RoBERTa base 作為編碼器部分，負責產生固定大小的上下文張量，以捕捉輸入文本中的語言學資訊。文本先經 RoBERTa 分詞器產生 token 索引與注意力遮罩，再輸入 RoBERTa 模型產生輸出。本文使用其最後一層隱藏狀態（大小為 512×768 的張量）作為解碼器的輸入；解碼器部分則擴展注意力遮罩的維度，以避免關注到填充（padding）token。</p>
+
+<h3 class="sub-title">解碼器</h3>
+<p>解碼器是一個自迴歸 Transformer 模型，其詞彙表對應標籤集合。因此，解碼器的詞彙表僅限於符號化標籤（即內部標籤識別碼）與特殊 token（詳見圖二）。解碼器會反覆利用先前生成的 token 與編碼器輸出作為條件，生成下一個 token；採用貪婪搜尋，在每一步選擇機率最高的 token，不考慮後續結果，直到產生特殊的結尾 token &lt;/s&gt; 為止。</p>
+
+<div class="fig-desc">
+<strong>圖二：標籤前處理與分詞範例（文字描述）</strong><br>
+以 NYT 資料集某樣本為例：<br>
+a) 原始標籤（父到子）：「Top/Features」、「Top/Features/Classifiers」……等完整路徑文字。<br>
+b) 對應的符號化標籤：如 [a_23]、[a_0]、[a_35]……等。<br>
+c) 加入層級分隔符 &lt;unk&gt; 後的結果，用以分隔不同階層層級。<br>
+d) 將標籤依「子到父」重新排序後的層級化結果。<br>
+e) 分詞器最終輸出（含填充）的數字索引序列。<br><br>
+例如符號標籤 [a_14] 對應 NYT 資料集中「Top/Classifieds/Job Market/Job Categories/Media, Entertainment and Publishing」這個完整標籤路徑。
+</div>
+
+<p>解碼器由嵌入層、位置嵌入層、後續的解碼器層，以及一個用於產生 logits 的線性層所組成。詳細流程如演算法一所示。訓練時解碼器接收四項輸入：樣本標籤 L⊆H、標籤遮罩 lm、編碼器最後一層隱藏狀態輸出 h，以及編碼器遮罩 m。首先計算標籤的絕對位置嵌入 le，以從有序標籤序列中捕捉階層資訊；接著將標籤嵌入 le 連同 h、m、lm 一併送入解碼器層，該層執行三個運算：先計算標籤嵌入的多頭自注意力 att；再將 att 通過層正規化與 dropout，計算出查詢 q；最後以編碼器的最後隱藏狀態 h 作為 key 與 value，連同查詢 q 與編碼器遮罩 m 一同送入 Transformer 區塊進行交叉注意力，產生該解碼器層的輸出。編碼器注意力遮罩 m 用以控制解碼器對編碼器隱藏狀態的注意力範圍。</p>
+<p>一個解碼器層的輸出，會作為下一個解碼器層的標籤嵌入，重複相同運算。最後一層解碼器層輸出後，經由線性層產生 logits，再用於計算 focal loss（一種更關注困難樣本的加權交叉熵）。</p>
+
+<div class="algo">演算法一：RADAr 解碼器的前向傳播
+
+輸入：標籤 L，標籤遮罩 lm，
+      編碼器輸出 h，編碼器遮罩 m
+輸出：損失值 loss
+
+1: le ← Dropout(詞嵌入(L) + 位置嵌入(L))
+2: for i = 1 到 層數 do
+3:     att ← 多頭自注意力_i(le, le, le, lm)
+4:     q ← Dropout(層正規化_i(att + le))
+5:     le ← Transformer區塊_i(h, h, q, m)
+6: end for
+7: logits ← 線性層(le)
+8: loss ← 交叉熵(L, logits)
+9: loss ← (1 − e^(−loss))^γ × loss   ▷ focal loss 調整
+10: return loss</div>
+
+<p>使用 WOS 資料集進行的前期實驗顯示，解碼器層數與 Transformer 區塊特徵的最佳選擇是「兩層解碼器層」，每層搭配八個注意力頭的 Transformer 區塊、一個前饋網路，並使用 0.2 的 dropout。</p>
+
+<h3 class="sub-title">訓練與測試</h3>
+<p>HTC 資料集中的標籤通常高度不平衡。為補償此不平衡，本文採用批次層級（batch-level）的 focal loss，即模型目標在於優化「較難分類」的批次，這些批次通常包含訓練資料中的低頻標籤樣本。</p>
+<p>模型以批次層級的真值最小化交叉熵，並套用 focal loss 縮放（演算法一第 9 行）。作法是先計算模型在該批次上的信心程度 e^(−loss)，再計算模型困惑度 1 − e^(−loss)，接著將困惑度提升至聚焦參數 γ 次方，得到調變因子（modulating factor），用以依批次難度調整批次交叉熵損失。若損失高，代表模型信心低、困惑度高，最終損失會被放大；反之，損失低時信心高、困惑度低，最終損失會被縮小。</p>
+<p>測試階段，解碼器以起始 token &lt;s&gt; 開始，逐一自迴歸生成 token，直到遇到結尾 token &lt;/s&gt; 為止。RADAr 使用貪婪搜尋生成 token，實驗發現使用集束搜尋（beam search）並未帶來改善。當模型處理一批樣本時，每個樣本會各自獨立地預測其 &lt;/s&gt; token。</p>
+` },
+
+{ id: "setup", title: "4. 實驗設置", en: "4 Experimental Apparatus", body: `
+<h3 class="sub-title">資料集與評估指標</h3>
+<p>本研究使用三個常見的 HTC 資料集：Web-of-Science（WOS）、NY-Times（NYT）與 RCV1-V2。WOS 資料集為兩層階層，每個樣本恰好有兩個標籤（一個子標籤與其父標籤），因此比另外兩個資料集更簡單。NYT 與 RCV1-V2 分別為八層與四層階層，其中 RCV1-V2 擁有最大的測試集規模。詳細統計資料見表二。</p>
+<p>評估採用 Micro-F1 與 Macro-F1 兩項指標，稀有標籤對 Macro-F1 的影響大於對 Micro-F1 的影響。RADAr 的實驗結果為五次不同隨機種子執行的平均值與標準差。</p>
+
+<h3 class="sub-title">表二：資料集統計</h3>
+<p class="en-title">Table 2. Statistics of the datasets</p>
+<table>
+<tr><th>資料集</th><th>|H| 標籤數</th><th>D 階層深度</th><th>平均標籤數</th><th>平均父標籤數</th><th>平均葉標籤數</th><th>訓練集</th><th>驗證集</th><th>測試集</th></tr>
+<tr><td>WOS</td><td>141</td><td>2</td><td>2.0/2.0/2.0</td><td>1.0/1.0/1.0</td><td>1.0/1.0/1.0</td><td>30,070</td><td>7,518</td><td>9,397</td></tr>
+<tr><td>NYT</td><td>166</td><td>8</td><td>7.6/7.6/7.5</td><td>5.9/5.9/5.9</td><td>1.7/1.6/1.7</td><td>23,345</td><td>5,834</td><td>7,292</td></tr>
+<tr><td>RCV1-V2</td><td>103</td><td>4</td><td>3.18/3.18/3.24</td><td>1.98/1.98/2.02</td><td>1.20/1.21/1.23</td><td>20,833</td><td>2,316</td><td>781,265</td></tr>
+</table>
+<p style="font-size:13px;color:var(--ink-soft);">數值格式為 訓練/驗證/測試 三組平均值。</p>
+
+<h3 class="sub-title">資料前處理</h3>
+<p>各資料集階層中的標籤通常以人類可讀的純文字提供。先前研究曾嘗試利用人類可讀標籤名稱中的語言學知識（即「標籤語意」），本研究則不採用此類語意資訊，而是以符號化標籤取代原始標籤。例如，符號標籤 [a_14] 對應 NYT 資料集中的「Top/Classifieds/Job Market/Job Categories/Media, Entertainment and Publishing」。</p>
+<p>標籤分詞器的詞彙表由該資料集的所有符號標籤組成，負責將輸入的符號標籤轉換為固定大小的向量，向量大小需容納該資料集可能出現的最大標籤數（而非平均值）及其他特殊 token。此向量大小依資料集而異：WOS、NYT、RCV1-V2 分別為 6、48、22。</p>
+<p>分詞器使用 &lt;s&gt; 與 &lt;/s&gt; 標記標籤序列的起始與結束，並以 &lt;pad&gt; token 填補 &lt;/s&gt; 之後的向量空間；此外，&lt;unk&gt; token 用來分隔不同的階層層級。</p>
+
+<h3 class="sub-title">流程與超參數</h3>
+<p>訓練時採用 AdamW 優化器（預設設定），編碼器與解碼器分別使用 5×10⁻⁵ 與 3×10⁻⁴ 的學習率——之所以需要兩種學習率，是因為編碼器已預訓練，而解碼器則是從零開始訓練。同時搭配耐心值（patience）為 3 的 ReduceLROnPlateau 學習率調度器：每個 epoch 結束後以平均驗證損失衡量進度，若連續三個 epoch 驗證損失未下降，則將編碼器與解碼器的學習率同時乘以 0.1。編碼器學習率持續下降直到低於 5×10⁻⁷ 時即凍結，之後僅由解碼器繼續學習。整個訓練迴圈的耐心值為 10，若連續十個 epoch 驗證損失未改善便停止訓練。</p>
+<p>模型使用聚焦參數 γ=2 的 focal loss，該損失基於帶有 0.1 標籤平滑（label smoothing）的交叉熵；並採用教師強制（teacher forcing）訓練方式，以及每 2 個批次（各 32 筆樣本）進行一次梯度累積。為確保可重現性，使用固定隨機種子。在此設定下，模型在 WOS、NYT、RCV1-V2 上分別訓練了 29、30、40 個 epoch；搭配耐心值 10，平均在 23 個 epoch 左右達到飽和。實驗以 PyTorch 實作，並在 NVIDIA A100-SXM4-40GB GPU 上執行。</p>
+<p>學習率、批次大小、聚焦參數、標籤平滑等超參數，皆依各資料集分別在驗證集上使用 wandb 進行選擇：先依文獻常見數值與前期實驗結果設定範圍（例如已知 5×10⁻⁵ 是 RoBERTa 合理的學習率，因此將範圍設為 [5×10⁻⁴, 5×10⁻⁶] 以涵蓋此值），接著在該範圍內隨機初始化，執行 20 次實驗選出最佳值，最後再以網格搜尋測試各超參數最佳值的所有組合，同樣在驗證集上進行評估。用於選擇超參數的完整數值列於論文對應的程式碼庫中。</p>
+` },
+
+{ id: "results", title: "5. 結果", en: "5 Results", body: `
+<p>表三呈現三個資料集上的 Micro-F1 與 Macro-F1 結果，並與文獻中的既有模型進行比較。部分 HTC 模型（如 HiMatch、HiAGM）原始版本並未使用預訓練語言模型作為文本編碼器；然而 HGCLR 論文顯示，將此類模型的文本編碼器替換為 BERT 可提升效果，本文比較即採用此改良版本。</p>
+<p>表三依模型架構分為五組：第一組為僅編碼器基準模型 BERT 與 RoBERTa，將標籤視為扁平集合；第二組為編碼器-解碼器基準模型 T5 與 BART，其表現低於僅編碼器基準模型；第三組為基於僅編碼器模型的 HTC 方法，包含 HiAGM、HTCInfoMax、HiMatch、HGCLR 與 HBGL（其中 HiAGM、HTCInfoMax、HiMatch 的結果為將原始文本編碼器替換為 BERT 後的結果），此組中表現最佳的是 HBGL，本文同時報告 HBGL 分別搭配 BERT 與 RoBERTa 的結果。</p>
+<p>第四組為階層式編碼器-解碼器模型：SGM、SGM-T5 與 Seq2Tree。SGM 使用自有詞彙表並從零訓練詞嵌入，儘管如此，SGM 在 NYT 資料集的 Macro-F1 上仍擊敗所有其他模型。SGM-T5 是以 T5 作為編碼器-解碼器骨幹的 SGM 改良版本，表現優於 SGM。Seq2Tree 是此組中表現最佳的模型，其在 WOS 資料集的 Macro-F1 甚至優於所有其他模型。由於 SGM 與 Seq2Tree 僅在特定資料集的個別指標上超越 HBGL，本文仍將 HBGL 視為目前最先進（state-of-the-art）的模型。</p>
+<p>第五組為本文提出的 RADAr 模型結果。相較於僅編碼器基準模型，RADAr 在 WOS、NYT、RCV1-V2 上分別提升了 2.77%、3%、2.62% 的 Macro-F1。與 HBGL 相比，RADAr 在 RCV1-V2 上取得相近的 Micro-F1；在另外兩個資料集上，各項指標差距介於 0% 至 1.55% 之間（此比較採用搭配 BERT 編碼器的 HBGL，因其為原始論文所使用版本；改用 RoBERTa 作為 HBGL 編碼器對結果影響不大，但納入比較有助於凸顯 RADAr 的競爭力）。整體而言，RADAr 在不使用標籤語意或階層圖編碼器的情況下，仍優於大多數 HTC 模型。</p>
+
+<h3 class="sub-title">表三：階層式文本分類結果</h3>
+<p class="en-title">Table 3. Hierarchical text classification results（RADAr 為五次執行平均值，括號內為標準差）</p>
+<table style="font-size:12px;">
+<tr><th>模型</th><th colspan="2">WOS</th><th colspan="2">NYT</th><th colspan="2">RCV1-V2</th><th>來源</th></tr>
+<tr><th></th><th>Micro-F1</th><th>Macro-F1</th><th>Micro-F1</th><th>Macro-F1</th><th>Micro-F1</th><th>Macro-F1</th><th></th></tr>
+<tr><td class="left"><strong>僅編碼器基準模型</strong></td><td colspan="7"></td></tr>
+<tr><td>BERT-base</td><td>85.63</td><td>79.07</td><td>78.24</td><td>65.62</td><td>85.65</td><td>67.02</td><td>[37]</td></tr>
+<tr><td>RoBERTa</td><td>-</td><td>-</td><td>77.05</td><td>55.53</td><td>86.99</td><td>62.29</td><td>[10]</td></tr>
+<tr><td class="left"><strong>編碼器-解碼器基準模型</strong></td><td colspan="7"></td></tr>
+<tr><td>BART</td><td>84.08</td><td>77.43</td><td>19.21</td><td>6.49</td><td>86.20</td><td>65.11</td><td>本文實驗</td></tr>
+<tr><td>T5</td><td>82.03</td><td>74.62</td><td>46.71</td><td>20.06</td><td>84.9</td><td>57.01</td><td>本文實驗</td></tr>
+<tr><td class="left"><strong>階層式僅編碼器分類器</strong></td><td colspan="7"></td></tr>
+<tr><td>HGCLR</td><td>87.11</td><td>81.20</td><td>78.86</td><td>67.96</td><td>86.49</td><td>68.31</td><td>[37]</td></tr>
+<tr><td>BERT+HiAGM</td><td>86.04</td><td>80.19</td><td>78.64</td><td>66.76</td><td>85.58</td><td>67.93</td><td>[37]</td></tr>
+<tr><td>BERT+HTCInfoMax</td><td>86.30</td><td>79.97</td><td>78.75</td><td>67.31</td><td>85.53</td><td>67.09</td><td>[37]</td></tr>
+<tr><td>BERT+HiMatch</td><td>86.70</td><td>81.06</td><td>-</td><td>-</td><td>86.33</td><td>68.66</td><td>[6]</td></tr>
+<tr><td>HBGL+RoBERTa</td><td>87.66</td><td>81.96</td><td>79.98</td><td>70.57</td><td>87.52</td><td>70.52</td><td>本文實驗</td></tr>
+<tr><td>HBGL+BERT</td><td>87.36</td><td>82.00</td><td>80.47</td><td>70.19</td><td>87.23</td><td>71.07</td><td>[14]</td></tr>
+<tr><td class="left"><strong>階層式編碼器-解碼器模型</strong></td><td colspan="7"></td></tr>
+<tr><td>SGM</td><td>67.74</td><td>74.01</td><td>64.68</td><td>72.78</td><td>71.85</td><td>35.29</td><td>本文實驗</td></tr>
+<tr><td>SGM-T5</td><td>85.83</td><td>80.79</td><td>-</td><td>-</td><td>84.39</td><td>65.09</td><td>[42]</td></tr>
+<tr><td>Seq2Tree</td><td>87.20</td><td>82.50</td><td>-</td><td>-</td><td>86.88</td><td>70.01</td><td>[42]</td></tr>
+<tr style="background:var(--accent-soft);"><td><strong>RADAr</strong></td><td>87.17(0.04)</td><td>81.84(0.08)</td><td>79.84(0.07)</td><td>68.64(0.28)</td><td>87.23(0.05)</td><td>69.64(0.12)</td><td>本文實驗</td></tr>
+<tr><td class="left">與 HBGL 差距</td><td>-0.19</td><td>-0.16</td><td>-0.63</td><td>-1.55</td><td>0.0</td><td>-1.43</td><td></td></tr>
+</table>
+` },
+
+{ id: "discussion", title: "6. 討論", en: "6 Discussion", body: `
+<p>結果顯示 RADAr 與其他 HTC 方法相比極具競爭力，這強烈說明只要標籤依階層順序排列，明確的圖編碼器其實並非必要。這項概念上的優勢，直接反映在訓練與推論時間上：儘管 RADAr 的參數量多於 HBGL（1.37 億 vs. 1.1 億），但其訓練與推論所需時間更短。以三個資料集的平均值計算，HBGL 需要 48 個 epoch、每個 epoch 耗時 11.67 分鐘；RADAr 僅需 33 個 epoch、每個 epoch 耗時 8.7 分鐘。就推論時間而言，HBGL 在 WOS、NYT、RCV1-V2 測試集上分別約需 135、184、12,406 秒，而 RADAr 僅需 74、82、6,716 秒。平均而言，RADAr 相較其最強競爭對手 HBGL，推論時間提升了 97.03%——實質上將吞吐量提高了一倍。</p>
+<p>RADAr 與先前模型最主要的差異，在於它不使用圖編碼器或標籤語意，而是從訓練所用標籤序列的組織方式中捕捉階層資訊。為了理解標籤組織方式與 RADAr 各元件的影響，本文進行了消融研究（6.1 節）與錯誤分析（6.2 節）。</p>
+
+<h3 class="sub-title">6.1 消融研究</h3>
+<p>消融研究分析了 RADAr 各元件的影響，涵蓋標籤序列組織的不同變體、focal loss 的效果、標籤語意的效果，以及使用不同文本編碼器的影響。表四彙整了消融研究結果，以下逐一說明。</p>
+
+<h4 style="margin-top:20px;color:var(--accent);">表四：消融實驗結果</h4>
+<p class="en-title">Table 4. Ablation study results（各項變化皆相對於完整 RADAr 模型）</p>
+<table style="font-size:12px;">
+<tr><th>實驗</th><th colspan="2">WOS</th><th colspan="2">NYT</th><th colspan="2">RCV1-V2</th></tr>
+<tr><th></th><th>Micro-F1</th><th>Macro-F1</th><th>Micro-F1</th><th>Macro-F1</th><th>Micro-F1</th><th>Macro-F1</th></tr>
+<tr style="background:var(--accent-soft);"><td class="left">RADAr 完整模型</td><td>87.19</td><td>81.84</td><td>79.88</td><td>69.09</td><td>87.22</td><td>69.48</td></tr>
+<tr><td class="left">…改為父到子順序</td><td>86.55</td><td>81.20</td><td>79.22</td><td>66.43</td><td>87.04</td><td>68.57</td></tr>
+<tr><td class="left">…移除 &lt;unk&gt; 分隔符</td><td>87.20</td><td>81.85</td><td>76.28</td><td>65.40</td><td>85.88</td><td>64.05</td></tr>
+<tr><td class="left">…用 &lt;unk&gt; 分隔路徑而非層級</td><td>87.19</td><td>81.84</td><td>77.35</td><td>62.95</td><td>79.35</td><td>63.64</td></tr>
+<tr><td class="left">…標籤打亂且無 &lt;unk&gt;</td><td>86.16</td><td>80.77</td><td>67.08</td><td>47.50</td><td>86.12</td><td>64.30</td></tr>
+<tr><td class="left">…僅子標籤＋階層還原</td><td>87.11</td><td>81.61</td><td>79.94</td><td>68.49</td><td>87.13</td><td>69.61</td></tr>
+<tr><td class="left">…標籤層級 focal loss</td><td>86.64</td><td>81.10</td><td>80.11</td><td>69.0</td><td>87.10</td><td>69.36</td></tr>
+<tr><td class="left">…不使用 focal loss</td><td>87.01</td><td>81.41</td><td>79.55</td><td>68.37</td><td>87.25</td><td>69.40</td></tr>
+<tr><td class="left">…使用標籤語意</td><td>86.58</td><td>81.49</td><td>79.60</td><td>67.52</td><td>86.96</td><td>69.51</td></tr>
+<tr><td class="left">…改用 BERT 編碼器</td><td>86.51</td><td>80.77</td><td>78.93</td><td>67.19</td><td>87.05</td><td>68.64</td></tr>
+<tr><td class="left">…改用 XLNet-base 編碼器</td><td>86.98</td><td>81.60</td><td>79.32</td><td>67.26</td><td>86.60</td><td>68.15</td></tr>
+<tr><td class="left">…改用 Sentence Transformer 編碼器</td><td>86.76</td><td>81.15</td><td>76.77</td><td>63.89</td><td>84.68</td><td>62.31</td></tr>
+</table>
+
+<p><strong>標籤順序（父到子 vs. 子到父）：</strong>消融結果顯示，將標籤由父到子排序，會在所有資料集的所有指標上降低表現，在 NYT 上最多下降 2.66% 的 Macro-F1；反之，由子到父的順序對各項指標皆有正面影響。此效應與階層深度有關——階層越深，效果越明顯。</p>
+<p><strong>&lt;unk&gt; 分隔符：</strong>移除 &lt;unk&gt; 層級分隔符後，對 WOS 資料集影響輕微，但對 NYT 與 RCV1-V2 而言則至關重要。此實驗中，模型仍以子到父的層級順序處理標籤，但不使用 &lt;unk&gt; 標示不同階層層級。WOS 影響輕微是預期中的結果，因為該資料集僅有兩個標籤（一父一子），加入 &lt;unk&gt; 幫助不大。</p>
+<p><strong>用 &lt;unk&gt; 分隔路徑而非層級：</strong>RADAr 原本用 &lt;unk&gt; 分隔不同階層層級，此實驗改為用它分隔同一樣本的不同路徑（路徑指從子標籤延伸到根節點的完整路徑）。結果顯示，對於階層結構複雜的資料集，這種組織方式會使問題更困難；同樣地，對僅有兩層階層、且每份文件僅有一個葉標籤的 WOS 資料集則無影響。</p>
+<p><strong>標籤打亂：</strong>為呈現標籤組織方式的重要性，此實驗以打亂順序的標籤序列進行微調。結果顯示，良好組織標籤對模型表現至關重要。由於模型無法學到隨機但固定的順序，這也說明子到父的順序實際上是一種簡化版的蘊含關係（entailment）——子標籤是前提（premise），父標籤是假設（hypothesis），換言之，模型是在對符號化標籤進行某種形式的推論。同樣地，標籤組織的效果也與階層深度相關：WOS、RCV1-V2、NYT 的 Macro-F1 分別下降 1.07%、5.18%、21.59%，顯示階層越深，標籤組織方式的影響越大。</p>
+<p><strong>僅子標籤＋階層還原：</strong>由於每個子標籤僅有一個父標籤，可利用階層從預測出的子標籤反推出所有父標籤直到根節點。此實驗移除所有能透過階層從其他標籤推得的標籤，僅保留重建完整標籤序列所需的最小標籤集合，再利用階層結構還原其餘標籤。此情境需要在測試階段可取得階層結構，這在實務上相當常見，因為此類階層通常是公開可得的。此方法在 NYT 資料集上的 Micro-F1 甚至略優於完整版最佳模型，這是因為簡化了問題複雜度，在 NYT 這種複雜資料集上效果尤其明顯。</p>
+<p><strong>Focal loss 的效果：</strong>「標籤層級 focal loss」實驗將 focal loss 套用在每個標籤上，此舉提升了 NYT 的 Micro-F1，但降低了其他指標；「不使用 focal loss」實驗則移除 focal loss 的調整，對 RCV1-V2 有正面效果（該資料集的 Micro-F1 甚至略優於表三中的最先進結果，但其他指標則不如完整版最佳模型）。整體而言，讓模型關注困難樣本是有幫助的，但過度關注則會產生負面影響，因此「批次層級 focal loss」是最佳選擇。</p>
+<p><strong>標籤語意：</strong>此實驗運用標籤名稱中的語言學資訊（如先前研究所做），具體作法是以每個符號標籤對應文字的 RoBERTa 詞元嵌入平均值，初始化解碼器嵌入層與輸出層中對應的向量。結果顯示，使用標籤語意的表現略遜於完整版最佳模型，可能原因是解碼器結構較編碼器簡單，且使用不同的詞彙表，因此在解碼器中導入標籤語意反而產生負面影響。</p>
+<p><strong>不同編碼器：</strong>改用 BERT 取代 RoBERTa，各項指標約下降 1%；另外也測試了 Sentence Transformer 與 XLNet-base，結果仍以 RoBERTa 表現最佳。</p>
+
+<h3 class="sub-title">6.2 錯誤分析</h3>
+<p>本節分析 RADAr 模型的錯誤類型，以下範例皆取自表現最佳的模型版本。</p>
+<p><strong>WOS：</strong>此資料集階層僅兩層，每個樣本恰好有兩個標籤（各屬於一個層級）。在 9,397 個測試樣本中，有 1,630 個樣本出現一個以上的生成錯誤，其中 852 個案例是子標籤預測錯誤、但父標籤正確。例如，模型對某樣本預測出 [[a_11], &lt;unk&gt;, [a_79], &lt;unk&gt;]，但正確答案為 [[a_72], &lt;unk&gt;, [a_79], &lt;unk&gt;]；查閱階層後發現，預測的子標籤 [a_11] 與正確子標籤 [a_72] 共享同一父標籤 [a_79]，這解釋了為何父標籤能被正確預測。其餘 778 個錯誤案例則是兩個標籤皆預測錯誤——也就是說，模型總是能正確預測父標籤，但若子標籤預測錯誤，該錯誤也會延續影響父標籤的預測。此問題即所謂的「曝光偏差」（exposure bias）。換言之，模型已學到資料集中子到父的關係，但在生成正確子標籤本身時仍有困難。</p>
+<p><strong>NYT：</strong>不同於 WOS，NYT 資料集為八層階層。在 7,292 個測試樣本中，有 3,791 個樣本出現不同類型的錯誤：其中 1,805 個樣本生成的序列較短，1,699 個樣本生成的序列較長，僅有 287 個樣本的 token 數與正確答案相同——顯示模型在正確判斷何時生成結尾 token 上有困難。</p>
+<p>就「較短序列」而言，模型往往未能預測出序列中間、開啟一條新路徑的標籤：例如在正確答案序列 [[a_52], &lt;unk&gt;, [a_48], [a_30], &lt;unk&gt;, [a_47], [a_29], &lt;unk&gt;, [a_46], [a_36], [a_24], &lt;unk&gt;, [a_23], &lt;unk&gt;] 中，模型未能預測出標籤 [a_36]（該標籤在根節點之前、且沒有前置的子標籤），卻能正確預測其後兩個生成的標籤——這說明模型在生成序列初期依賴文本輸入，但隨著生成更多標籤，逐漸轉為依賴先前預測出的標籤。</p>
+<p>就「較長序列」而言，模型無法在八個階層層級中選對正確的起始層級。例如，正確答案為 [[a_99], &lt;unk&gt;, [a_85], &lt;unk&gt;]，模型卻預測出 [[a_12], &lt;unk&gt;, [a_2], &lt;unk&gt;, [a_1][a_99], &lt;unk&gt;, [a_0][a_85], &lt;unk&gt;]，其中包含了正確答案，但多加了額外的標籤——顯示模型確實掌握了階層結構，卻從比實際需要更深的層級開始生成。最後，對於序列長度相同的案例，同樣受到與 WOS 相似的曝光偏差問題影響。</p>
+<p><strong>RCV1-V2：</strong>此資料集為四層階層。在 781,265 個測試樣本中，有 260,415 個樣本出現不同類型的生成錯誤：其中 124,622 個樣本生成較短序列，104,336 個樣本生成較長序列，僅 31,457 個樣本長度與正確答案相同。深入比較後發現，這些錯誤模式與 NYT 相似；但相較於 NYT，本資料集上模型明顯較常產生「過短」的序列，而非「過長」的序列。</p>
+` },
+
+{ id: "conclusion", title: "7. 結論與未來工作", en: "7 Conclusion and Future Work", body: `
+<p>本文提出 RADAr，一個以 RoBERTa 作為編碼器、搭配自迴歸解碼器來處理 HTC 任務的序列到序列模型。RADAr 沒有專門用於標籤階層的編碼器，而是在訓練過程中從標籤序列裡學習階層資訊。研究顯示，將標籤序列由子到父排序，比起既有文獻中普遍採用的相反順序（父到子）更為有效。RADAr 證明了標籤語意與明確編碼標籤階層並非達成良好效能的必要條件，因此是一個需求更少、元件也更容易替換的彈性模型。未來工作將進一步研究曝光偏差問題，並將模型應用於非階層式的多標籤分類任務。</p>
+
+<h3 class="sub-title">局限性</h3>
+<p>由於本文的 RADAr 模型是在三個英文基準資料集上微調，因此屬於英文模型。不過，由於解碼器使用符號化標籤、不依賴標籤語意，該模型可延伸至其他語言，且編碼器亦可輕易替換為多語言 Transformer 編碼器。</p>
+
+<h3 class="sub-title">致謝</h3>
+<p>本研究由德國研究基金會（DFG）資助，隸屬 UnknownData 計畫（Grant No. 460676019）。</p>
+
+<div class="note-box">
+本翻譯涵蓋論文正文完整內容（摘要至結論、局限性、致謝）。原文參考文獻列表（[1]–[46]）多為標準學術書目資訊，此處未逐條翻譯，如需查閱請對照原始 PDF 文件之 References 章節。
+</div>
+` }
+];
+
+// Build sidebar + content
+const toc = document.getElementById("toc");
+const container = document.getElementById("sections");
+
+sections.forEach((sec, idx) => {
+  const li = document.createElement("li");
+  const a = document.createElement("a");
+  a.textContent = sec.title;
+  a.dataset.idx = idx;
+  a.onclick = () => showSection(idx);
+  li.appendChild(a);
+  toc.appendChild(li);
+
+  const div = document.createElement("div");
+  div.className = "section";
+  div.id = "sec-" + idx;
+  div.innerHTML = `<h2 class="sec-title">${sec.title}</h2><p class="en-title">${sec.en}</p>${sec.body}`;
+  container.appendChild(div);
+});
+
+let current = 0;
+function showSection(idx) {
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll("#toc a").forEach(a => a.classList.remove("active"));
+  document.getElementById("sec-" + idx).classList.add("active");
+  document.querySelectorAll("#toc a")[idx].classList.add("active");
+  current = idx;
+  document.getElementById("prevBtn").disabled = idx === 0;
+  document.getElementById("nextBtn").disabled = idx === sections.length - 1;
+  document.getElementById("main").scrollTop = 0;
+  window.scrollTo(0,0);
+}
+
+document.getElementById("prevBtn").onclick = () => { if (current > 0) showSection(current - 1); };
+document.getElementById("nextBtn").onclick = () => { if (current < sections.length - 1) showSection(current + 1); };
+
+showSection(0);
+</script>
+</body>
+</html>

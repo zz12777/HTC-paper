@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>重新審視階層式文本分類：推論與評量指標｜中文譯本</title>
+<style>
+  :root{
+    --paper:#f6f3ec;
+    --ink:#2b2620;
+    --ink-soft:#5c554a;
+    --accent:#8a3b2b;
+    --accent-soft:#c98a6f;
+    --line:#ddd4c2;
+    --sidebar-bg:#231f1a;
+    --sidebar-text:#e8e2d4;
+    --sidebar-muted:#9c9284;
+    --code-bg:#ece5d5;
+    --serif: "Noto Serif TC", "Source Han Serif TC", "PMingLiU", serif;
+    --sans: "Noto Sans TC", "Source Han Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    background:var(--paper);
+    color:var(--ink);
+    line-height:1.85;
+  }
+  .layout{
+    display:grid;
+    grid-template-columns:280px 1fr;
+    min-height:100vh;
+  }
+  /* Sidebar */
+  .sidebar{
+    background:var(--sidebar-bg);
+    color:var(--sidebar-text);
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:28px 22px 40px;
+    border-right:1px solid #14110d;
+  }
+  .sidebar-title{
+    font-family:var(--serif);
+    font-size:1.05rem;
+    font-weight:700;
+    color:#fff;
+    line-height:1.5;
+    margin-bottom:4px;
+    letter-spacing:.02em;
+  }
+  .sidebar-sub{
+    font-size:.75rem;
+    color:var(--sidebar-muted);
+    margin-bottom:26px;
+    letter-spacing:.05em;
+  }
+  .toc{list-style:none;margin:0;padding:0;}
+  .toc li{margin:0;}
+  .toc a{
+    display:block;
+    color:var(--sidebar-text);
+    text-decoration:none;
+    font-size:.86rem;
+    padding:8px 10px;
+    border-radius:4px;
+    border-left:2px solid transparent;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .toc a:hover{background:#33291f; color:#fff;}
+  .toc a.active{
+    background:#3a2a1e;
+    color:var(--accent-soft);
+    border-left:2px solid var(--accent-soft);
+    font-weight:600;
+  }
+  .toc .sub a{
+    padding-left:24px;
+    font-size:.80rem;
+    color:var(--sidebar-muted);
+  }
+  .toc .sub a:hover{color:#fff;}
+  .toc-divider{
+    height:1px;background:#3a342a;margin:14px 0;
+  }
+  .toc-label{
+    font-size:.68rem;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    color:var(--sidebar-muted);
+    padding:0 10px;
+    margin:18px 0 6px;
+  }
+
+  /* Main */
+  main{
+    padding:64px 72px 120px;
+    max-width:880px;
+  }
+  @media (max-width:900px){
+    .layout{grid-template-columns:1fr;}
+    .sidebar{position:relative;height:auto;}
+    main{padding:36px 24px 80px;}
+  }
+
+  .doc-header{margin-bottom:56px; border-bottom:1px solid var(--line); padding-bottom:36px;}
+  .doc-header .eyebrow{
+    font-size:.75rem;
+    letter-spacing:.15em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:700;
+    margin-bottom:14px;
+  }
+  h1.doc-title{
+    font-family:var(--serif);
+    font-size:2.1rem;
+    line-height:1.4;
+    margin:0 0 10px;
+    color:var(--ink);
+  }
+  .doc-title-en{
+    font-size:1.05rem;
+    color:var(--ink-soft);
+    font-style:italic;
+    margin-bottom:22px;
+  }
+  .meta{font-size:.88rem; color:var(--ink-soft); line-height:1.9;}
+  .meta strong{color:var(--ink);}
+
+  section.chapter{
+    margin-bottom:64px;
+    scroll-margin-top:24px;
+  }
+  h2.chapter-title{
+    font-family:var(--serif);
+    font-size:1.55rem;
+    color:var(--accent);
+    border-bottom:2px solid var(--accent);
+    padding-bottom:10px;
+    margin:0 0 26px;
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+  }
+  h2.chapter-title .num{
+    font-size:1.1rem;
+    color:var(--accent-soft);
+  }
+  h3.sub-title{
+    font-family:var(--serif);
+    font-size:1.18rem;
+    color:var(--ink);
+    margin:34px 0 14px;
+    padding-left:12px;
+    border-left:4px solid var(--accent-soft);
+  }
+  h4.sub-sub-title{
+    font-size:1.02rem;
+    color:var(--ink);
+    margin:24px 0 10px;
+    font-weight:700;
+  }
+  p{margin:0 0 18px; font-size:.98rem; color:var(--ink);}
+  .lead{
+    font-size:1.03rem;
+    color:var(--ink-soft);
+    font-style:italic;
+    border-left:3px solid var(--line);
+    padding-left:16px;
+    margin-bottom:28px;
+  }
+  ul,ol{margin:0 0 18px; padding-left:26px;}
+  li{margin-bottom:8px; font-size:.98rem;}
+  strong{color:var(--accent);}
+  em.term{font-style:normal; color:var(--accent); font-weight:600;}
+
+  .callout{
+    background:var(--code-bg);
+    border:1px solid var(--line);
+    border-left:4px solid var(--accent);
+    border-radius:4px;
+    padding:16px 20px;
+    margin:20px 0 26px;
+    font-size:.93rem;
+    color:var(--ink-soft);
+  }
+  .callout strong{display:block; color:var(--accent); margin-bottom:6px; font-size:.85rem; text-transform:uppercase; letter-spacing:.05em;}
+
+  .formula-box{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:18px 24px;
+    margin:18px 0 24px;
+    font-family:"Cambria Math", Cambria, serif;
+    font-size:1.02rem;
+    color:var(--ink);
+    overflow-x:auto;
+    text-align:center;
+  }
+  .formula-box .desc{
+    font-family:var(--sans);
+    font-size:.82rem;
+    color:var(--ink-soft);
+    text-align:left;
+    margin-top:8px;
+  }
+
+  figure{
+    margin:24px 0 30px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:16px;
+    text-align:center;
+  }
+  figure img{max-width:100%; border-radius:3px;}
+  figcaption{
+    font-size:.83rem;
+    color:var(--ink-soft);
+    margin-top:10px;
+    text-align:left;
+    line-height:1.7;
+  }
+  figcaption b{color:var(--ink);}
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:18px 0 28px;
+    font-size:.85rem;
+    background:#fff;
+  }
+  table caption{
+    caption-side:top;
+    text-align:left;
+    font-size:.83rem;
+    color:var(--ink-soft);
+    margin-bottom:8px;
+    font-style:italic;
+  }
+  th,td{
+    border:1px solid var(--line);
+    padding:8px 10px;
+    text-align:center;
+  }
+  th{background:var(--code-bg); color:var(--ink); font-weight:700;}
+  td:first-child, th:first-child{text-align:left;}
+  .best{font-weight:700; color:var(--accent);}
+
+  .orig-cite{
+    font-size:.8rem;
+    color:#9a8f7a;
+    margin-top:-8px;
+  }
+
+  .divider{
+    height:1px;
+    background:var(--line);
+    margin:40px 0;
+  }
+
+  .translator-note{
+    background:#fbf8f0;
+    border:1px dashed var(--accent-soft);
+    border-radius:6px;
+    padding:18px 22px;
+    font-size:.88rem;
+    color:var(--ink-soft);
+    margin:24px 0;
+  }
+  .translator-note strong{color:var(--accent);}
+
+  .refs{
+    font-size:.83rem;
+    color:var(--ink-soft);
+    line-height:1.9;
+  }
+  .refs .ref-item{margin-bottom:10px; padding-left:1.6em; text-indent:-1.6em;}
+
+  .top-link{
+    display:inline-block;
+    font-size:.78rem;
+    color:var(--accent);
+    text-decoration:none;
+    margin-top:6px;
+  }
+  .top-link:hover{text-decoration:underline;}
+
+  ::selection{background:#e5cdb8;}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-title">重新審視階層式文本分類：<br>推論與評量指標</div>
+    <div class="sidebar-sub">中文譯本 · 目錄導覽</div>
+
+    <ul class="toc">
+      <li><a href="#top" data-target="top">封面 / 摘要</a></li>
+      <li><a href="#s1" data-target="s1">1　引言</a></li>
+      <li><a href="#s2" data-target="s2">2　相關研究</a></li>
+      <li class="sub"><a href="#s2-1" data-target="s2-1">2.1　階層式文本分類</a></li>
+      <li class="sub"><a href="#s2-2" data-target="s2-2">2.2　階層式預測</a></li>
+      <li class="sub"><a href="#s2-3" data-target="s2-3">2.3　階層式分類評量</a></li>
+      <li><a href="#s3" data-target="s3">3　評量指標</a></li>
+      <li class="sub"><a href="#s3-1" data-target="s3-1">3.1　多標籤指標</a></li>
+      <li class="sub"><a href="#s3-2" data-target="s3-2">3.2　階層式指標</a></li>
+      <li class="sub"><a href="#s3-3" data-target="s3-3">3.3　推論方法</a></li>
+      <li><a href="#s4" data-target="s4">4　簡單的條件式損失方法</a></li>
+      <li class="sub"><a href="#s4-1" data-target="s4-1">4.1　條件式 Softmax 交叉熵</a></li>
+      <li class="sub"><a href="#s4-2" data-target="s4-2">4.2　Logit 調整條件式 Softmax</a></li>
+      <li class="sub"><a href="#s4-3" data-target="s4-3">4.3　條件式 Sigmoid 二元交叉熵</a></li>
+      <li><a href="#s5" data-target="s5">5　實驗設定</a></li>
+      <li class="sub"><a href="#s5-1" data-target="s5-1">5.1　資料集</a></li>
+      <li class="sub"><a href="#s5-2" data-target="s5-2">5.2　模型</a></li>
+      <li class="sub"><a href="#s5-3" data-target="s5-3">5.3　訓練細節</a></li>
+      <li><a href="#s6" data-target="s6">6　結果與分析</a></li>
+      <li><a href="#s7" data-target="s7">7　結論</a></li>
+      <li><a href="#refs" data-target="refs">參考文獻（節錄）</a></li>
+    </ul>
+
+    <div class="toc-divider"></div>
+    <div class="toc-label">關於本文件</div>
+    <div style="padding:0 10px; font-size:.78rem; color:var(--sidebar-muted); line-height:1.8;">
+      原文發表於 CoNLL 2024（第28屆計算自然語言學習會議），頁231–242。<br><br>
+      作者：Roman Plaud, Matthieu Labeau, Antoine Saillenfest, Thomas Bonald（Institut Polytechnique de Paris / Onepoint）
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main>
+
+    <header class="doc-header" id="top">
+      <div class="eyebrow">CoNLL 2024 · 論文中文譯本</div>
+      <h1 class="doc-title">重新審視階層式文本分類：推論與評量指標</h1>
+      <div class="doc-title-en">Revisiting Hierarchical Text Classification: Inference and Metrics</div>
+      <div class="meta">
+        <strong>作者：</strong>Roman Plaud¹˒²、Matthieu Labeau¹、Antoine Saillenfest²、Thomas Bonald¹<br>
+        <strong>單位：</strong>¹ 法國巴黎綜合理工學院（Institut Polytechnique de Paris）　² Onepoint<br>
+        <strong>出處：</strong>Proceedings of the 28th Conference on Computational Natural Language Learning, pp.231–242, 2024
+      </div>
+    </header>
+
+    <section class="chapter" id="abstract-block">
+      <h2 class="chapter-title"><span class="num">◆</span> 摘要</h2>
+      <p>階層式文本分類（Hierarchical Text Classification, HTC）是一項將標籤指派給文本的任務，這些標籤存在於一個結構化的階層空間之中。近年來的研究多半把 HTC 當作一般的多標籤分類問題來處理，因此也用多標籤分類的方式來評量。本文則主張應以專門設計的階層式評量指標來評估模型表現，並展示評量指標選擇與預測推論方法之間存在的複雜關聯。我們提出一個新的、更具挑戰性的資料集，並在其上將近期較為精細複雜的模型與一系列簡單卻強健的基線方法（包括一個新提出、具理論依據的損失函數）進行比較。最終結果顯示，這些簡單基線經常足以與最新方法相抗衡。這凸顯了在提出 HTC 新方法時，仔細考量評量方法論的重要性。程式碼實作與資料集已公開於
+        <a href="https://github.com/RomanPlaud/revisitingHTC" style="color:var(--accent);">github.com/RomanPlaud/revisitingHTC</a>。</p>
+    </section>
+
+    <!-- SECTION 1 -->
+    <section class="chapter" id="s1">
+      <h2 class="chapter-title"><span class="num">1</span> 引言</h2>
+      <p>文本分類是一個歷史悠久的問題，其標籤集合可以有多種不同型態。其中，階層式文本分類（HTC）所處理的標籤具有親子（parent-child）階層結構。這種結構所形成的關係，可以是一棵樹（tree）（Kowsari et al., 2018；Lewis et al., 2004；Lyubinets et al., 2018；Aly et al., 2019；Sandhaus, 2008），也可以是一個有向無環圖（DAG）（Bertinetto et al., 2020）。每筆輸入文本會對應到一組標籤，這組標籤在階層中構成一條或多條路徑。</p>
+      <p>HTC 首要面對的關鍵挑戰，在於如何準確評量模型表現。這需要對錯誤嚴重程度敏感的評量指標——也就是說，在階層樹中距離較遠的預測錯誤，應該受到較大的懲罰。儘管 Kiritchenko et al.（2006）、Silla and Freitas（2011）、Kosmopoulos et al.（2014）以及 Amigo and Delgado（2022）已在此領域做出開創性的努力，但階層式分類情境下的評量方法至今仍是一個持續發展中的研究課題。</p>
+      <p>相關文獻已相當豐富。近期最先進的方法多半致力於產生「具階層感知能力」（hierarchy-aware）的文本表徵，也就是將標籤階層結構的資訊整合進模型（Song et al., 2023；Zhou et al., 2020；Deng et al., 2021；Wang et al., 2022b,a；Jiang et al., 2022；Chen et al., 2021；Zhu et al., 2023, 2024；Yu et al., 2023）。然而，我們認為這些模型的評量方式尚未受到充分檢視：在這些研究中，HTC 任務多半被當作標準的多標籤分類問題來評量。本文則要探討這種做法所隱含的問題——尤其是「如何從估計出的機率分布推導出最終預測」這件事，我們認為這是一個尚未被充分處理的挑戰。我們提供了新的洞見，強調推論方法與評量方法密不可分、必須一併考量。</p>
+      <p>為了完成這項研究，我們引入了一個全新的英文基準資料集——<em class="term">Hierarchical WikiVitals（HWV）</em>，其挑戰性遠高於目前常見的英文 HTC 基準資料集（見圖1，展示其分類體系的節錄）。我們在自己提出的評量框架下進行實驗，將近期先進模型的表現與較簡單的方法相比對，其中包括我們基於「條件式 softmax」設計、用以整合階層資訊的多種損失函數（受 Bertinetto et al., 2020；Vaswani et al., 2022；Zhang et al., 2021 啟發）。整體而言，本文的貢獻如下：</p>
+      <ol>
+        <li>提出以專門設計的階層式評量指標、並搭配嚴謹方法論來量化評估 HTC 方法。</li>
+        <li>提出 Hierarchical WikiVitals——一個從維基百科擷取、具高品質的全新 HTC 資料集。此資料集擁有深且複雜的階層結構，提供更困難的挑戰。</li>
+        <li>在三個常用的 HTC 資料集與 HWV 上進行大量實驗，並提出一種新的損失函數。此方法搭配 BERT 模型時，能取得與近期先進模型相抗衡的結果。</li>
+      </ol>
+      <p>我們的結果顯示，當前最先進的模型並不必然能妥善編碼階層結構資訊，且在 HWV 資料集上，其表現會被我們提出的更簡單損失函數超越。</p>
+
+      <h4 class="sub-sub-title">問題定義</h4>
+      <p>階層式文本分類（HTC）是文本分類的一個子任務，其目標是將輸入文本 x ∈ X 指派給標籤集合 Y ⊂ 𝒴，其中標籤空間 𝒴 具有親子關係。我們稱這個有向圖為階層 ℋ = (𝒴, ℰ)，其中 ℰ ⊂ 𝒴² 是從父節點指向子節點的邊集合。本文將研究範圍限定在 ℋ 為一棵樹的情況。我們沿用 Valmadre（2022）的記號，稱 r ∈ 𝒴 為唯一的根節點，ℒ 為葉節點集合。對於節點 y ∈ 𝒴 \ {r}，我們以 π(y) 表示其唯一父節點，𝒞(y) ⊂ 𝒴 表示其子節點集合，𝒜(y) 表示其祖先集合（定義上包含自身）。</p>
+      <p>輸入 x 的標籤集合 Y 並非任意組成：若 y ∈ Y，則因為親子關係的緣故，必然有 𝒜(y) ⊂ Y。一個更嚴格的框架是「單路徑葉標籤」（single-path leaf labels）設定，其中對某個 l ∈ ℒ，Y = 𝒜(l)（也就是說 Y 是一條到達葉節點的單一路徑）。</p>
+      <p>本文研究的方法，是將輸入文本 x 映射到 𝒴 上的一個條件分布 ℙ(·|x)，其估計值記為 P̂(·|x)。最後，我們所稱的「推論規則」（inference rule），是指如何從一個機率分布產生出一組二元預測的方式。例如，可以將 P̂(·|x) 以閾值 τ 做門檻化，得到預測 Ŷ_τ = {y ∈ 𝒴, P̂(y|x) > τ}。</p>
+    </section>
+
+    <!-- SECTION 2 -->
+    <section class="chapter" id="s2">
+      <h2 class="chapter-title"><span class="num">2</span> 相關研究</h2>
+
+      <h3 class="sub-title" id="s2-1">2.1　階層式文本分類</h3>
+      <p>階層式分類問題（包含 HTC 這個特例）通常透過「局部方法」（local approach）或「全域方法」（global approach）來處理。我們沿用 Silla and Freitas（2011）原始的定義：兩者的差異在於訓練階段。局部方法意味著訓練一組專門化的分類器，例如每個節點一個分類器、每個父節點一個分類器，甚至每個層級一個分類器；而在訓練過程中，每個分類器並不知曉整個階層的整體結構（Zangari et al., 2024）。雖然計算成本經常較高，但這類方法已被證實能有效捕捉重要的局部資訊。沿著這個方向，Banerjee et al.（2019）提出將父分類器的參數與其子分類器的參數相連結，延續「將知識從父節點傳遞至子代節點」的想法（Shimura et al., 2018；Huang et al., 2019；Wehrmann et al., 2018）。</p>
+      <p>相對地，全域方法採用單一模型，直接將整個階層資訊納入預測之中。全域方法本身種類差異很大，可大致分為兩大類：一類是加入階層懲罰項的損失函數，另一類是具階層感知能力的模型。</p>
+      <p><strong>階層懲罰。</strong>這類方法的核心想法，通常是在標準的二元交叉熵（BCE）損失上，加入能融入階層資訊的懲罰項。Gopal and Yang（2013）與 Zhang et al.（2021）提出基於上位詞關係（hypernymy）的正則化方法，作用於參數空間或輸出的機率空間；而 Vaswani et al.（2022）則提出一種增強版的 BCE 損失，稱為 CHAMP，依據偽陽性預測在階層樹中與真實標籤的距離來施加懲罰。</p>
+      <p><strong>具階層感知能力的模型。</strong>為了將階層的結構性約束納入預測，Mao et al.（2019）提出一種強化學習方法，Aly et al.（2019）則提出基於膠囊網路（capsule networks）的架構。然而，近期的研究已透過「結合文本編碼器與作用於標籤階層的結構編碼器」達到最先進的結果。此概念最早由 Zhou et al.（2020）提出，他們使用圖卷積網路（GCN）作為階層編碼器。在此基礎上，Jiang et al.（2022）與 Wang et al.（2024）發展出能更好整合局部階層資訊的方法。Wang et al.（2022a）提出對比學習方法，Zhu et al.（2023）則設計了以結構熵（structural entropy）為引導來編碼階層的方法；Zhu et al.（2024）將兩者結合。這些發展延續了更早期同一脈絡的研究（Chen et al., 2020；Zhang et al., 2022；Deng et al., 2021；Chen et al., 2021；Wang et al., 2021）。值得注意的是，這些模型通常是以 BCE 損失、或其加上懲罰項的變體來訓練（Zhang et al., 2021）。</p>
+
+      <h3 class="sub-title" id="s2-2">2.2　階層式預測</h3>
+      <p>HTC 的預測涉及兩個看似難以調和的難題：其一是要在「獨立預測」之間做選擇，這可能導致<em class="term">一致性</em>（coherence）問題（例如，預測了子節點卻沒有預測其父節點）；其二是採用由上而下（top-down）的推論方式，這可能導致<em class="term">誤差傳播</em>（error propagation）問題（Yang and Cardie, 2013；Song et al., 2012）。近期的階層感知模型多半採用前者的框架，將模型當作簡單的多標籤分類器來訓練與評量，其代價是忽略了可能結構不良的預測結果。本文將對這兩種方式都進行實驗。</p>
+
+      <h3 class="sub-title" id="s2-3">2.3　階層式分類評量</h3>
+      <p>階層式分類的評量是一個長期存在的研究課題（Kosmopoulos et al., 2014；Amigo and Delgado, 2022；Costa et al., 2007），由此衍生出多個問題。首先，存在多種不同的設定方式，隱含著對標籤結構的不同假設：正如前文所述的「單路徑葉標籤」框架，也存在多路徑階層，甚至存在僅有非葉標籤的輸入。因此，設計出<strong>不受限於特定階層分類框架</strong>的評量指標十分重要。其次，一個階層式指標必須真正具有「階層性」，也就是說，它應該根據已知的階層結構來考量錯誤的嚴重程度：直覺上，把「Terrier（㹴犬）」誤判成「Bulldog（鬥牛犬）」應該比誤判成「Unicorn（獨角獸）」受到較輕的懲罰。Amigo and Delgado（2022）歸納出一組評量指標應具備的特性，並將指標分類為：<strong>多標籤指標</strong>（label-based、example-based、ranking-based）以及<strong>階層式指標</strong>（pair-based、set-based）。本文大量參考這項開創性研究，作為選擇評量指標的依據。</p>
+      <p>最後，推論規則應與所選的評量指標相互配合。貝氏決策理論的文獻（Berger, 1985）致力於根據所選定的評量指標，找出最優的決策規則。然而，在階層式分類的脈絡下，這個問題卻鮮少受到重視，人們常常選用臨時拼湊、缺乏統計依據的推論方法：舉例來說，近期的 HTC 文獻多半是以 τ = 0.5 做為閾值，對估計出的機率分布做門檻化來進行推論。我們也可以思考其他推論方法，例如基於由上而下或由下而上的推論規則。因此，關鍵在於找出這樣的評量指標：它要嘛具備有理論依據的預測規則，要嘛<strong>不依賴任何特定的推論方法</strong>，而是能綜合考量整個機率分布——這意味著要在不同的操作點上進行評量。在接下來的部分，我們將依據上述三項要求，重新檢視現有的評量指標。</p>
+    </section>
+
+    <!-- SECTION 3 -->
+    <section class="chapter" id="s3">
+      <h2 class="chapter-title"><span class="num">3</span> 評量指標</h2>
+      <p>近期 HTC 文獻中所使用的推論規則，其實對應著一種傳統的多標籤評量方法論：以 τ = 0.5 計算 F1 分數（micro 與 macro）。以下，我們將說明這種門檻化方式其實是次佳的，並介紹本文實驗中所使用的指標，接著再說明我們為何主張採用「不依賴推論規則」的評量方法論。</p>
+
+      <h3 class="sub-title" id="s3-1">3.1　多標籤指標</h3>
+      <p>多標籤評量的方法眾多；Wu and Zhou（2016）透過統一的記號體系，整理出 11 種不同的指標。其中，我們保留了以 0.5 為門檻所計算出的分數所得出的 <em class="term">micro</em> 與 <em class="term">macro</em> F1 分數，這也是 HTC 文獻中常見的做法。我們額外加入一個簡單的指標，也就是「標籤誤判比例」——漢明損失（Hamming Loss），同樣搭配 0.5 門檻化的推論規則。</p>
+      <div class="translator-note"><strong>譯註</strong>此處作者於原文腳註提及：此門檻化推論之所以最優，僅在「標籤獨立」（label independence）的假設下成立（Dembczyński et al., 2012），而此假設在階層式分類情境中並不成立。</div>
+
+      <h3 class="sub-title" id="s3-2">3.2　階層式指標</h3>
+      <p>我們在此引入本文評量框架中認定為關鍵的 <em class="term">hF1 分數</em>（hierarchical F1-score）。我們定義：若 z ∈ Ŷ ⇒ 𝒜(z) ⊂ Ŷ 成立，則稱一個預測是<em class="term">一致的（coherent）</em>。</p>
+
+      <h4 class="sub-sub-title">階層式 F1 分數</h4>
+      <p>此指標由 Kiritchenko et al.（2006）提出，屬於 <em class="term">set-based</em>（集合層級）的度量方式，做法是將 Ŷ 擴增為包含其所有祖先節點的集合：</p>
+      <div class="formula-box">
+        Ŷ<sup>aug</sup> = ⋃<sub>ŷ∈Ŷ</sub> 𝒜(ŷ)　　（公式 1）
+      </div>
+      <p>據此計算出階層式精確率、召回率與 F1 分數：</p>
+      <div class="formula-box">
+        hP(Y, Ŷ) = |Ŷ<sup>aug</sup> ∩ Y| / |Ŷ<sup>aug</sup>|　　　　hR(Y, Ŷ) = |Ŷ<sup>aug</sup> ∩ Y| / |Y|
+        <br><br>
+        hF1(Y, Ŷ) = 2 · hP(Y, Ŷ) · hR(Y, Ŷ) / [ hP(Y, Ŷ) + hR(Y, Ŷ) ]
+      </div>
+      <p>這是將 F1 分數擴展至階層式分類的一種簡單方式。在多標籤情境下，計算全域 F1 分數有多種聚合方法。我們依照 Kosmopoulos et al.（2014）的做法，定義一種<em class="term">逐樣本</em>（per-instance）的 hF1 分數，再對所有輸入取平均（稱為 <em class="term">samples</em> 設定）。此指標最初由 Kiritchenko et al.（2006）以 <em class="term">micro</em> 形式提出。</p>
+
+      <div class="callout">
+        <strong>命題 1</strong>
+        在 micro 與 samples 設定下，若每一個預測 Ŷ 皆為一致（coherent），則 hF1 與 F1 嚴格相等。
+      </div>
+
+      <p><strong>動機。</strong>階層式 F1 分數透過考量真實標籤與預測標籤之間的祖先重疊程度，因而能考量到錯誤的嚴重性，且不受限於特定的階層分類框架。此外，命題 1（證明詳見原文附錄 C.2，Plaud et al., 2024）在「以樣本為基礎的多標籤指標」與「以集合為基礎的階層式指標」之間建立了連結，證明了只要預測結果是一致的，採用近期文獻常用的 micro F1 分數確實是合理的。最後，hF1 分數涵蓋了 Amigo and Delgado（2022）所列出的所有理想階層特性，唯一的例外是它並未完全捕捉到「特異性」（specificity，也就是預測某一節點時所留下的不確定程度）。</p>
+
+      <figure>
+        <div style="font-family:var(--sans); font-size:.85rem; color:var(--ink-soft); padding:30px 10px; background:#faf7ef; border-radius:4px;">
+          <b>圖 2　示意：同一階層在不同門檻下得到的條件分布估計與預測節點</b><br><br>
+          左圖（門檻 0.3）與右圖（門檻 0.5）呈現同一個簡單階層樹的條件機率估計：<br>
+          根節點 (1.00) → 節點1 (0.75) / 節點2 (0.25)；節點1 之下有節點3 (0.20)、節點4 (0.20)、節點5 (0.35)。<br>
+          藍色標示為對應門檻下被預測選中的節點。
+        </div>
+        <figcaption>圖 2：在一個簡單階層上，條件分布估計的範例，以及不同門檻值（左：0.3，右：0.5）所對應的預測節點（以藍色標示）。</figcaption>
+      </figure>
+
+      <h4 class="sub-sub-title">其他階層式指標</h4>
+      <p>如前一節所述，hF1 分數並不完美，因為它假設「深度」與「特異性」是等價的。為解決此問題，Valmadre（2022）提出一種以資訊量為基礎的階層式 F1 分數（詳見原文附錄 A）。此外也存在多標籤 F1 分數的「受限版本」（Yu et al., 2022；Ji et al., 2023），用以處理一致性問題：也就是說，僅當某標籤節點的所有祖先節點皆被正確預測時，該節點的正確預測才算有效。</p>
+      <p>雖然這些指標看似有其可取之處，但我們選擇不採用它們，因為與其對應的標準指標相比，它們並未能對方法的整體排名帶來全面性的影響（詳細理由見原文附錄 A）。此外，文獻中也存在為數不少的「情境相依」階層式指標（Sun and Lim, 2001；Bi and Kwok, 2015），由於本文追求對階層分類情境的普適性，故不在此討論。</p>
+
+      <h3 class="sub-title" id="s3-3">3.3　推論方法論</h3>
+      <p>本節首先要闡述我們反對「使用 BCE 損失搭配 τ = 0.5」來產生預測這種做法的理由。雖然在標籤獨立的假設下（Dembczyński et al., 2012），這種做法確實對應到多標籤漢明損失的最小化，但據我們所知，並無證據顯示這樣的預測方式在階層式情境下是最優的。相反地，諸如<em class="term">風險最小化</em>（risk minimization）之類的工具，能夠提供一套具統計依據的推論方法論，從模型針對給定 x 所估計出的 ℙ(·|x) 出發，來最佳化所選定的評量指標。特別是，可以證明 F1 分數的最優門檻值其實會隨 ℙ(·|x) 而變動（證明詳見原文附錄 C.1.2）。</p>
+      <p>然而，一個簡單的反例便足以推翻「固定使用 0.5」這個選擇，此例如圖 2 所示。該圖展示了在給定 x 之下，一個一致且完整（exhaustive）的機率分布 ℙ(·|x)。若以 0.5 門檻化，會得到預測 {1}；然而經由簡單計算（詳見原文附錄 C.1）可得：</p>
+      <div class="formula-box">
+        𝔼[hF1(Y, {1}) | X = x] = 0.5
+        <br>
+        𝔼[hF1(Y, {1, 5}) | X = x] = 0.55
+      </div>
+      <p>這顯示出：在單路徑葉標籤設定下，若目標是最大化 hF1 分數，預測 {1, 5} 明確優於預測 {1}。結合命題 1 來看，這個簡單的例子從理論上證明了<strong>當前最先進模型所使用的推論方法論其實是次佳的</strong>。由於最優門檻值本身是未知的，我們需要設計出一套不依賴特定臨時推論規則的評量框架，以避免引入缺乏統計依據的方法。依循 Valmadre（2022）的建議，我們因而捨棄固定的推論規則，改為遍歷所有可能的門檻值，繪製 hF1 的精確率—召回率曲線（precision-recall curve），並由此曲線計算曲線下面積（AUC）。</p>
+    </section>
+
+    <!-- SECTION 4 -->
+    <section class="chapter" id="s4">
+      <h2 class="chapter-title"><span class="num">4</span> 簡單的條件式損失方法</h2>
+      <p>作為對現有以 BCE 為主流的最先進方法的對照，本文提出數種以損失函數為核心、能整合局部資訊的方法，這些方法皆奠基於<strong>條件機率</strong>的估計。</p>
+
+      <h3 class="sub-title" id="s4-1">4.1　條件式 Softmax 交叉熵</h3>
+      <p>如同「問題定義」一節所述，我們關注的方法是：給定輸入文本 x，產生 𝒴 上的估計分布 P̂(·|x)。本文提出將現代文本編碼器與<em class="term">條件式 softmax</em>（Redmon and Farhadi, 2017）相結合，此方式透過產生「階層一致」（hierarchy-coherent）的機率分布，內建地整合了階層結構，並搭配交叉熵損失來訓練。給定輸入文本 x 及其對應的標籤集合 Y，首先以文本編碼器產生嵌入表示 h_x ∈ ℝ^d。</p>
+
+      <h4 class="sub-sub-title">條件式 Softmax</h4>
+      <p>條件式 softmax 首先透過標準線性映射，將 h_x 映射到 s_x ∈ ℝ^|𝒴|：</p>
+      <div class="formula-box">s_x = W h_x + b　　（公式 2）
+        <div class="desc">其中 W ∈ ℝ^(|𝒴|×d)，b ∈ ℝ^|𝒴|。</div>
+      </div>
+      <p>接著，在每一組「兄弟節點」（brotherhood）之內套用 softmax：</p>
+      <div class="formula-box">
+        P̂(y | x, π(y)) = exp(s_x^[y]) / Σ<sub>z∈𝒞(π(y))</sub> exp(s_x^[z])　　（公式 3）
+      </div>
+      <p>其中 π(y) 為節點 y 的父節點，𝒞(π(y)) 為 π(y) 的子節點集合（包含 y 本身），s_x^[y] 是 s_x 中對應節點 y 的那個分量。</p>
+      <p>由此，logits s_x 被用來建模「在給定父節點的條件下，某節點發生的條件機率」。舉例來說，這可以代表「輸入 x 屬於 Bulldog（鬥牛犬）類別」的機率，條件是「x 已知屬於 Dog（狗）」。</p>
+
+      <h4 class="sub-sub-title">交叉熵</h4>
+      <p>一組 (x, Y) 對損失的貢獻，是由標準的葉節點交叉熵給出（就像是在標準的單標籤多類別分類問題中，僅針對葉節點計算一樣）。在本文的建模方式下，可進一步分解為：</p>
+      <div class="formula-box">
+        l<sub>CSoft</sub>(x, Y) = − log P̂(y<sup>leaf</sup> | x) = − Σ<sub>y∈Y</sub> log P̂(y | x, π(y))　　（公式 4）
+        <div class="desc">其中 y<sup>leaf</sup> 表示 Y 中唯一的葉節點。</div>
+      </div>
+
+      <h4 class="sub-sub-title">輸出的條件分布</h4>
+      <p>對於任一 y ∈ 𝒴，其機率由標準的條件性分解式計算而得：</p>
+      <div class="formula-box">
+        P̂(y | x) = ∏<sub>z∈𝒜(y)</sub> P̂(z | x, π(z))
+      </div>
+
+      <p><strong>動機。</strong>與基於 BCE 的方法不同，這種建模方式直接將標籤階層結構的先驗資訊納入模型。此外，輸出的機率分布是一致且完整的（coherent and exhaustive）。它比單純的葉節點 softmax 更強大，因為它把葉節點機率的估計拆解成多個子問題來處理。同時，此方法在計算上也相當經濟，時間複雜度僅為 𝒪(|𝒴|)。</p>
+
+      <h3 class="sub-title" id="s4-2">4.2　Logit 調整條件式 Softmax</h3>
+      <p>接著，本文提出條件式 softmax 的加強版，用以改善其在資料不平衡情況下的穩健性。這對於本文新提出的 HWV 資料集尤其重要，因為該資料集中約有一半的標籤，其樣本總數不到 10 筆。此提案的靈感源自 Zhou et al.（2020），他們的實驗結果證實了：將先驗機率分布整合進模型，對 HTC 任務是有益的，其做法是以此預先計算出的先驗分布來初始化（或固定）結構編碼器的權重。因此，本文參考 Menon et al.（2021）的做法，提出<em class="term">logit 調整條件式 softmax 交叉熵</em>。公式 (3) 因而變為：</p>
+      <div class="formula-box">
+        P̂(y | x, π(y)) = e^(s_x^[y] + τ·log ν(y|π(y))) / Σ<sub>z∈𝒞(π(y))</sub> e^(s_x^[z] + τ·log ν(z|π(z)))
+        <div class="desc">其中 ν(y|π(y)) 是對 ℙ(y|π(y)) 的估計值（實務上以訓練集上每個標籤的經驗機率估計，不可訓練），τ 為超參數。公式 (4) 維持不變。</div>
+      </div>
+      <p>關於此 logit 調整版 softmax 如何適配到本文情境的詳盡說明，以及其理論依據，請見原文附錄 C.3。我們預期此損失函數能夠提升模型在代表性不足類別上的表現。</p>
+
+      <h3 class="sub-title" id="s4-3">4.3　條件式 Sigmoid 二元交叉熵</h3>
+      <p>實務上，近期文獻中常用來評測 HTC 模型的多個真實世界資料集（Lewis et al., 2004；Aly et al., 2019）都是<em class="term">多路徑（multi-path）</em>的。由於條件式 softmax 並非為多路徑標籤所設計，本文提出改採用<em class="term">條件式 sigmoid 損失</em>（由 Brust and Denzler, 2020 提出）。其思路與條件式 softmax 相似：對 s_x 的每個分量套用 sigmoid，以此建模「在給定父節點的條件下，該節點的條件機率」。因此，一組 (x, Y) 對損失的貢獻，由以下的<em class="term">遮罩交叉熵</em>（masked cross-entropy）給出：</p>
+      <div class="formula-box">
+        l<sub>CSig</sub>(x, Y) = − Σ<sub>z∈Y</sub> log(P̂(z|x, π(z))) + Σ<sub>u∈𝒞(π(z))\{z}</sub> log(1 − P̂(u|x, π(z)))
+      </div>
+
+      <div class="callout">
+        <strong>命題 2</strong>
+        設 x ∈ 𝒳，Y ⊂ 𝒴，且 W 定義如公式 2，則：<br>
+        ∂l<sub>CSoft</sub>(x, Y) / ∂W = ∂l<sub>CSig</sub>(x, Y) / ∂W
+      </div>
+
+      <p>證明詳見原文附錄 C.4。雖然 Brust and Denzler（2020）當初提出條件式 sigmoid 時並沒有理論上的論證，但命題 2 證明了：此損失函數與條件式 softmax 交叉熵損失，兩者所計算出的梯度是完全相等的。這使得此損失函數得以同時處理多路徑資料集與非完整（non-exhaustive）標籤資料集，並保有與條件式 softmax 相似的特性。</p>
+    </section>
+
+    <!-- SECTION 5 -->
+    <section class="chapter" id="s5">
+      <h2 class="chapter-title"><span class="num">5</span> 實驗設定</h2>
+      <p>本節將介紹本文所實驗的既有資料集與模型，並說明本文新提出的資料集——Hierarchical WikiVitals（HWV）。</p>
+
+      <h3 class="sub-title" id="s5-1">5.1　資料集</h3>
+      <p>我們會在三個 HTC 文獻中廣泛使用的資料集上，將本文提出的方法與基線方法、近期先進模型的表現一併比較，這些資料集主要應用於英文資料：Web-of-Science（WOS）（Kowsari et al., 2018）、RCV1-V2（Lewis et al., 2004）以及 BGC（Aly et al., 2019）。資料集統計數字列於表 1：這些資料集的共通點是訓練樣本數量相對龐大、節點數量可觀，但標籤結構的深度較淺。本文透過釋出 Hierarchical WikiVitals，為 HTC 基準測試貢獻一個更具挑戰性的新選擇。</p>
+
+      <table>
+        <caption>表 1：所選資料集的關鍵統計數據。SPL 表示該資料集屬於「單路徑葉標籤」設定，MP 表示屬於「多路徑」；d 表示標籤階層的最大深度。</caption>
+        <thead>
+          <tr><th>資料集</th><th>訓練/驗證/測試</th><th>#節點數（#葉節點）</th><th>各層節點數</th><th>每樣本平均標籤數</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>HWV (SPL)</td><td>6,408 / 1,602 / 2,003</td><td>1186 (953)</td><td>11-109-381-437-244-4</td><td>3.7</td></tr>
+          <tr><td>WOS (SPL)</td><td>30,070 / 7,518 / 9,397</td><td>141 (134)</td><td>7-134</td><td>2.0</td></tr>
+          <tr><td>RCV1 (MP)</td><td>23,149 / – / 781,265</td><td>103 (82)</td><td>4-55-43-1</td><td>3.2</td></tr>
+          <tr><td>BGC (MP)</td><td>58,715 / 14,785 / 18,394</td><td>146 (120)</td><td>7-46-77-16</td><td>3.0</td></tr>
+        </tbody>
+      </table>
+
+      <h4 class="sub-sub-title">HWV 資料集</h4>
+      <p>文本擷取自維基百科「重要條目」（vital articles）第四級（截至 2021 年 6 月）的摘要。此計畫涉及對所選條目進行人工的階層式分類，且這些條目本身都經過高標準的品質審查。所產生的資料集是<em class="term">單路徑葉標籤</em>資料集，這項限制在本文使用的資料集中，僅有 WOS 也具備。由於節點數量與階層深度都高於前述其他資料集，HWV 遠比它們更具挑戰性。此資料集的另一特徵是標籤分布高度不平衡，全資料集中約有 50% 的標籤，其範例數不足 10 筆。圖 1 展示了本文新資料集中的三個觀察範例，說明葉節點深度變化之大（從 2 到 6 不等）。關於 HWV 建構過程與資料品質的詳盡說明，請見原文附錄 B。</p>
+
+      <h3 class="sub-title" id="s5-2">5.2　模型</h3>
+      <p>本文比較了差異相當大的多種 HTC 模型，範圍從簡單基線到最新的先進方法。為求公平比較，所有模型皆採用預訓練的 BERT<sup>7</sup> 模型（Devlin et al., 2019）作為文本編碼器，並統一以標準的 [CLS] 表示作為 h_x。以下列出所有評測的模型：</p>
+      <ul>
+        <li><strong>BERT + BCE</strong>：最簡單的基線，將問題當作多標籤任務處理，不使用任何標籤階層結構的資訊。</li>
+        <li><strong>BERT + Leaf Softmax</strong>：輸出對葉節點的分布，因此僅適用於單路徑葉標籤設定。</li>
+        <li><strong>BERT + CHAMP</strong>：依據偽陽性預測與真實標籤集合在階層樹中的最短路徑距離施加懲罰（Vaswani et al., 2022）。</li>
+        <li><strong>BERT + Conditional {Softmax, logit-adjusted Softmax, Sigmoid}</strong>：本文提出的方法，詳見第 4.1 節。</li>
+        <li><strong>Hitin</strong>（Zhu et al., 2023）、<strong>HBGL</strong>（Jiang et al., 2022）、<strong>HGCLR</strong>（Wang et al., 2022a）：近期最先進的模型，分別提出以高效方式單獨編碼標籤階層、透過考量子圖同時整合全域與局部資訊來編碼標籤階層，以及運用對比學習並利用標籤階層產生合理的擾動範例。</li>
+      </ul>
+
+      <h3 class="sub-title" id="s5-3">5.3　訓練細節</h3>
+      <p>本文使用 transformers 函式庫（Wolf et al., 2020）中的 <code style="background:var(--code-bg); padding:1px 5px; border-radius:3px;">bert-base-uncased</code> 模型作為文本編碼器（1.1 億參數）。實作基於 Hitin 的程式碼<sup>8</sup>。每個基線方法皆在一張 32GB 的 V100 GPU 上訓練 20 個週期（epoch），批次大小為 16。使用 AdamW 優化器，初始學習率為 2·10⁻⁵，並搭配佔訓練步數 10% 的暖身期（warmup）。對於 HBGL<sup>9</sup>、Hitin 與 HGCLR<sup>10</sup>，本文遵循其原始實作的指引來進行實驗。對於原始論文未使用的資料集，本文則透過網格搜尋進行超參數最佳化。所有結果皆為四次獨立訓練（各以不同隨機種子初始化）的平均值，以確保評量方法論的穩健性與公平性。</p>
+    </section>
+
+    <!-- SECTION 6 -->
+    <section class="chapter" id="s6">
+      <h2 class="chapter-title"><span class="num">6</span> 結果與分析</h2>
+
+      <table>
+        <caption>表 2：HWV 與 WOS 測試集上，各模型的評量指標結果（含 95% 信賴區間）。各指標最佳結果以粗體標示。HBGL 模型在 HWV 資料集上因記憶體超出 32GB GPU 容量而無法執行。</caption>
+        <thead>
+          <tr><th rowspan="2">方法</th><th colspan="4">HWV</th><th colspan="4">WOS</th></tr>
+          <tr><th>漢明損失(‰)↓</th><th>F1 micro(%)↑</th><th>F1 macro(%)↑</th><th>hF1 AUC(%)↑</th><th>漢明損失(‰)↓</th><th>F1 micro(%)↑</th><th>F1 macro(%)↑</th><th>hF1 AUC(%)↑</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>BCE</td><td>0.854</td><td>85.86</td><td>45.56</td><td>89.23</td><td>3.627</td><td>87.03</td><td>81.19</td><td>89.18</td></tr>
+          <tr><td>CHAMP</td><td>0.786</td><td>87.14</td><td>50.90</td><td>89.87</td><td>3.637</td><td>87.01</td><td>81.23</td><td>88.74</td></tr>
+          <tr><td>HBGL</td><td>–</td><td>–</td><td>–</td><td>–</td><td class="best">3.584</td><td class="best">87.22</td><td class="best">81.86</td><td>89.00</td></tr>
+          <tr><td>HGCLR</td><td>0.922</td><td>84.92</td><td>44.89</td><td>88.35</td><td>3.727</td><td>86.63</td><td>80.04</td><td class="best">89.23</td></tr>
+          <tr><td>HITIN</td><td class="best">0.776</td><td>87.49</td><td>51.73</td><td>90.72</td><td>3.655</td><td>87.05</td><td>81.49</td><td>88.92</td></tr>
+          <tr><td>Leaf Softmax</td><td>0.950</td><td>84.79</td><td>51.49</td><td>88.55</td><td>3.987</td><td>85.91</td><td>80.02</td><td>88.62</td></tr>
+          <tr><td>Conditional Sigmoid</td><td>0.801</td><td>87.01</td><td>52.27</td><td>90.40</td><td>3.692</td><td>86.86</td><td>81.07</td><td>88.78</td></tr>
+          <tr><td>Conditional Softmax</td><td>0.788</td><td class="best">87.49</td><td>53.79</td><td>90.94</td><td>3.869</td><td>86.27</td><td>80.25</td><td>88.77</td></tr>
+          <tr><td>Cond. Softmax + LA（本文方法）</td><td>0.782</td><td class="best">87.51</td><td class="best">54.39</td><td class="best">90.97</td><td>3.837</td><td>86.35</td><td>80.11</td><td>88.90</td></tr>
+        </tbody>
+      </table>
+
+      <table>
+        <caption>表 3：RCV1 與 BGC 測試集上，各模型的評量指標結果（含 95% 信賴區間）。各指標最佳結果以粗體標示。</caption>
+        <thead>
+          <tr><th rowspan="2">方法</th><th colspan="4">RCV1</th><th colspan="4">BGC</th></tr>
+          <tr><th>漢明損失(‰)↓</th><th>F1 micro(%)↑</th><th>F1 macro(%)↑</th><th>hF1 AUC(%)↑</th><th>漢明損失(‰)↓</th><th>F1 micro(%)↑</th><th>F1 macro(%)↑</th><th>hF1 AUC(%)↑</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>BCE</td><td>8.225</td><td>86.65</td><td>66.47</td><td class="best">93.66</td><td class="best">7.788</td><td class="best">80.51</td><td>62.33</td><td class="best">90.26</td></tr>
+          <tr><td>CHAMP</td><td>8.565</td><td>85.93</td><td>62.86</td><td>93.12</td><td>7.775</td><td class="best">80.54</td><td>63.58</td><td>90.19</td></tr>
+          <tr><td>HBGL</td><td class="best">8.122</td><td class="best">87.11</td><td class="best">70.20</td><td>93.35</td><td>8.092</td><td>80.19</td><td class="best">65.94</td><td>88.08</td></tr>
+          <tr><td>HGCLR</td><td>8.761</td><td>86.11</td><td>67.49</td><td>93.27</td><td>8.054</td><td>80.16</td><td>63.58</td><td>89.81</td></tr>
+          <tr><td>HITIN</td><td>8.583</td><td>85.72</td><td>60.00</td><td>93.04</td><td>7.981</td><td>80.36</td><td>61.62</td><td>90.08</td></tr>
+          <tr><td>Conditional Sigmoid</td><td>8.652</td><td>85.77</td><td>63.90</td><td>93.23</td><td>7.954</td><td>80.24</td><td>62.65</td><td>90.07</td></tr>
+        </tbody>
+      </table>
+
+      <p>本文從評估 HWV（本文新提出的資料集）上的模型表現開始。結果列於表 2。可惜的是，HBGL 架構在 HWV 上無法執行，因為其所需記憶體超出本文 GPU 的容量上限。<strong>在此資料集上，本文可觀察到新提出的 logit 調整條件式 softmax 損失（及其原始版本）整體表現最為優異。</strong>最新的先進模型並未取得最佳結果，這一點令人意外，畢竟 HWV 的階層結構複雜且標籤高度不平衡。本文因而推測：儘管「具階層感知能力」的模型在較簡單的資料集上已被證實有效，但它們未能在 HWV 這種複雜程度下捕捉到相應的結構資訊。</p>
+
+      <figure>
+        <div style="font-family:var(--sans); font-size:.85rem; color:var(--ink-soft); padding:30px 10px; background:#faf7ef; border-radius:4px;">
+          <b>圖 3　按深度分層的平均 Macro F1 分數（HWV 測試集）</b><br><br>
+          橫軸：標籤深度（1 至 6）；縱軸：平均 Macro F1 分數。<br>
+          四條曲線分別為 BCE、HITIN、Conditional Softmax、Conditional Softmax LA。<br>
+          整體趨勢：深度愈深、分數愈低；深度較深時條件式 softmax 系列方法優勢愈明顯。
+        </div>
+        <figcaption>圖 3：HWV 測試集上，各模型依標籤深度分層之平均 Macro F1 分數。誤差線代表 95% 信賴區間。</figcaption>
+      </figure>
+
+      <figure>
+        <div style="font-family:var(--sans); font-size:.85rem; color:var(--ink-soft); padding:30px 10px; background:#faf7ef; border-radius:4px;">
+          <b>圖 4　按訓練集標籤數量十分位數分層的平均 Macro F1 分數（HWV）</b><br><br>
+          橫軸：訓練集中標籤出現次數之十分位區間（0-10% 為最稀有，90-100% 為最常見）；縱軸：平均 Macro F1 分數。<br>
+          在前三個十分位（最稀有的標籤），Logit 調整版條件式 softmax 顯著優於原始版本。
+        </div>
+        <figcaption>圖 4：HWV 測試集上，依訓練集中標籤數量分布之十分位數分層的平均 Macro F1 分數。陰影區域代表 95% 信賴區間。</figcaption>
+      </figure>
+
+      <p>為了探究其表現較佳的原因，本文在圖 3 與圖 4 中展示了依類別平均的 macro F1 分數。圖 3 呈現依標籤深度平均的分數：可觀察到深度愈深，條件式 softmax 及其 logit 調整版本所帶來的效能提升就愈大（深度 6 例外，因為該層僅有 4 個類別）。圖 4 則顯示，logit 調整條件式 softmax 相對於原始版條件式 softmax 的優勢，主要來自於它更能正確分類<em class="term">代表性不足</em>的類別。直到標籤數量分布的第三個十分位為止，本文新提出的方法在統計上顯著更優。這是可以預期的結果，因為此損失函數正是專為處理標籤不平衡而設計（詳見原文附錄 C.3）。顯然，深度與標籤的代表性不足程度高度相關。</p>
+
+      <table>
+        <caption>表 4：切除至深度 2 的 HWV 資料集上，各模型的評量指標結果（含 95% 信賴區間）。各指標最佳結果以粗體標示。</caption>
+        <thead>
+          <tr><th rowspan="2">方法</th><th colspan="3">HWV（深度 2）</th></tr>
+          <tr><th>漢明損失(‰)↓</th><th>F1 micro(%)↑ / F1 macro(%)↑</th><th>hF1 AUC(%)↑</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>BCE</td><td>2.367</td><td>92.89 / 78.42</td><td>94.67</td></tr>
+          <tr><td>HITIN</td><td class="best">2.316</td><td class="best">93.05 / 79.59</td><td class="best">94.79</td></tr>
+          <tr><td>Cond. Soft.</td><td>2.450</td><td>92.65 / 78.40</td><td>94.73</td></tr>
+          <tr><td>Cond. S. L.A.</td><td>2.432</td><td>92.89 / 79.38</td><td>94.77</td></tr>
+        </tbody>
+      </table>
+
+      <p>本文因此針對標籤階層結構進行了消融實驗：將 HWV 的階層切除至深度 2。如此一來，階層變得淺薄，但標籤不平衡的問題依然存在。表 4 呈現此修改後資料集上的結果。在此情境下，最先進模型追上了本文提出的條件式 softmax 系列損失，Hitin 在所有指標上重新取得些微領先。這兩項觀察讓本文得以精煉出以下結論：第一，原始版條件式 softmax 在 HWV 上相對於近期最先進方法的優勢，似乎源自於階層的複雜度——<strong>條件式建模能夠更好地分類位於深層的類別</strong>。第二，logit 調整版本在標籤不平衡存在時展現出其效用，這一點可以從 macro F1 分數指標中觀察到：在 HWV 資料集的兩個版本中，logit 調整版都在統計上顯著優於原始版本。</p>
+
+      <p>在 WOS 資料集上，較簡單的基線方法取得了相當出色的結果。儘管 HBGL 略勝一籌，值得注意的是，<strong>BERT+BCE 模型在所有指標上皆位居頂尖表現之列</strong>，而它完全沒有使用標籤階層資訊。在此資料集上，本文提出的新方法雖具競爭力，但仍略遜一籌。</p>
+
+      <p>這些結果與 HWV 資料集所得出的結論相符：WOS 資料集的複雜度較低，無論是階層深度（最大深度僅為 2）或標籤分布（僅有一個類別的樣本數少於 40）皆是如此。在多路徑資料集上，本文的觀察與 WOS 上的結果高度一致：如表 3 所示，單純的 BCE 損失在各資料集、各指標上都持續取得出色的結果。階層式指標清楚地凸顯了這個現象。事實上，在多標籤 F1 分數與階層式 F1 分數之間，模型排名僅在 HWV 上維持一致；而在其他三個資料集上，<strong>具結構感知能力、不依賴推論門檻的指標，都將 BCE 基線推向了榜首</strong>。</p>
+
+      <p>本文認為，這些結果讓我們得以歸納出兩項主要結論：第一，階層式指標為 HTC 評量帶來了有用的洞見，且是評量模型「編碼標籤結構的能力」時所必需的——而本文的結果顯示，這種能力目前普遍不足。第二，當面對更具挑戰性的資料集時，當前最先進、具階層感知能力的 HTC 模型，反而不如一個以條件式 softmax 交叉熵訓練的簡單模型，更能將複雜的階層資訊整合進其預測之中。</p>
+    </section>
+
+    <!-- SECTION 7 -->
+    <section class="chapter" id="s7">
+      <h2 class="chapter-title"><span class="num">7</span> 結論</h2>
+      <p>本文重新檢視了近期 HTC 領域的研究進展，並提出對其評量方法的反思。為此，我們首先指出了近期文獻中常見的推論方法與評量指標所存在的侷限性。我們轉而提出改用既有的階層式指標，並搭配對應的推論方法。接著，我們引入一個全新且更具挑戰性的資料集——Hierarchical WikiVitals；本文的實驗顯示，近期精細複雜、具階層感知能力的模型，在整合階層資訊方面，其表現並未優於簡單的基線方法。最後，本文提出簡單的階層式損失函數，能在本文資料集上更好地整合階層資訊。展望未來，我們計劃進一步研究針對階層式指標的推論機制，期望能對改善 HTC 任務的模型表現做出直接貢獻。</p>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- REFERENCES (selected) -->
+    <section class="chapter" id="refs">
+      <h2 class="chapter-title"><span class="num">§</span> 參考文獻（節錄重點）</h2>
+      <div class="translator-note">
+        <strong>譯註</strong>
+        原文參考文獻共約 60 筆，涵蓋 HTC 領域自 2000 年代至 2024 年的重要研究。以下僅摘錄本文正文中反覆提及、對理解全文最關鍵的文獻；完整參考文獻列表請參閱原文 PDF 第 239–242 頁。
+      </div>
+      <div class="refs">
+        <div class="ref-item">Amigo, E. and Delgado, A. (2022). <i>Evaluating extreme hierarchical multi-label classification.</i> ACL 2022.——本文階層式指標分類框架的主要依據。</div>
+        <div class="ref-item">Aly, R., Remus, S., and Biemann, C. (2019). <i>Hierarchical multi-label classification of text with capsule networks.</i> ACL 2019 (Student Research Workshop).——BGC 資料集出處。</div>
+        <div class="ref-item">Devlin, J. et al. (2019). <i>BERT: Pre-training of deep bidirectional transformers for language understanding.</i> NAACL 2019.——本文所用文本編碼器。</div>
+        <div class="ref-item">Jiang, T. et al. (2022). <i>Exploiting global and local hierarchies for hierarchical text classification.</i> EMNLP 2022.——HBGL 模型出處。</div>
+        <div class="ref-item">Kiritchenko, S. et al. (2006). <i>Learning and evaluation in the presence of class hierarchies.</i>——階層式 F1 分數（hF1）原始提出者。</div>
+        <div class="ref-item">Kowsari, K. et al. (2018). <i>Web of science dataset.</i>——WOS 資料集出處。</div>
+        <div class="ref-item">Lewis, D. D. et al. (2004). <i>RCV1: A new benchmark collection for text categorization research.</i> JMLR.——RCV1 資料集出處。</div>
+        <div class="ref-item">Menon, A. K. et al. (2021). <i>Long-tail learning via logit adjustment.</i> ICLR 2021.——本文 logit 調整方法的靈感來源。</div>
+        <div class="ref-item">Valmadre, J. (2022). <i>Hierarchical classification at multiple operating points.</i> NeurIPS 2022.——本文「不依賴推論規則、以 AUC 評量」方法論的主要參考。</div>
+        <div class="ref-item">Vaswani, A. et al. (2022). <i>All mistakes are not equal: Comprehensive hierarchy aware multi-label predictions (CHAMP).</i>——CHAMP 損失函數出處。</div>
+        <div class="ref-item">Wang, Z. et al. (2022a). <i>Incorporating hierarchy into text encoder: a contrastive learning approach for hierarchical text classification.</i> ACL 2022.——HGCLR 模型出處。</div>
+        <div class="ref-item">Wu, X.-Z. and Zhou, Z.-H. (2016). <i>A unified view of multi-label performance measures.</i> ICML 2016.——多標籤評量指標統一框架出處。</div>
+        <div class="ref-item">Zhou, J. et al. (2020). <i>Hierarchy-aware global model for hierarchical text classification.</i> ACL 2020.——首個提出以 GCN 編碼標籤階層的模型。</div>
+        <div class="ref-item">Zhu, H. et al. (2023). <i>HiTIN: Hierarchy-aware tree isomorphism network for hierarchical text classification.</i> ACL 2023.——HiTIN 模型出處，本文實作所依循的程式碼基礎。</div>
+      </div>
+      <a href="#top" class="top-link">↑ 回到頂端</a>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  // Highlight active section in sidebar as user scrolls
+  const sections = document.querySelectorAll('main section, main header');
+  const links = document.querySelectorAll('.toc a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const id = entry.target.id;
+      const link = document.querySelector('.toc a[href="#' + id + '"]');
+      if (!link) return;
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+
+  sections.forEach(sec => { if (sec.id) observer.observe(sec); });
+</script>
+
+</body>
+</html>

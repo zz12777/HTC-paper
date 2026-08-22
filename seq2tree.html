@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>受限序列到樹生成：階層式文本分類（Seq2Tree）中文導讀</title>
+<style>
+  :root{
+    --paper:#f7f4ee;
+    --ink:#2b2622;
+    --ink-soft:#6b6259;
+    --accent:#8a5a3b;
+    --accent-soft:#e8dcc9;
+    --line:#ddd3c2;
+    --code-bg:#ece5d6;
+    --sidebar-w:280px;
+    --serif: "Noto Serif TC", "Source Han Serif TC", "Songti TC", serif;
+    --sans: "Noto Sans TC", "Source Han Sans TC", "PingFang TC", sans-serif;
+    --mono: "JetBrains Mono", "Courier New", monospace;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    background:var(--paper);
+    color:var(--ink);
+    line-height:1.85;
+  }
+  /* ---------- Sidebar ---------- */
+  #sidebar{
+    position:fixed;
+    top:0; left:0; bottom:0;
+    width:var(--sidebar-w);
+    background:#fbf9f4;
+    border-right:1px solid var(--line);
+    overflow-y:auto;
+    padding:28px 0 40px;
+    z-index:50;
+  }
+  #sidebar .brand{
+    padding:0 24px 20px;
+    border-bottom:1px solid var(--line);
+    margin-bottom:14px;
+  }
+  #sidebar .brand .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.14em;
+    color:var(--accent);
+    text-transform:uppercase;
+  }
+  #sidebar .brand h1{
+    font-family:var(--serif);
+    font-size:18px;
+    line-height:1.4;
+    margin:8px 0 0;
+    font-weight:700;
+  }
+  #sidebar nav{padding:0 12px;}
+  #sidebar nav a{
+    display:block;
+    padding:8px 12px;
+    font-size:14px;
+    color:var(--ink-soft);
+    text-decoration:none;
+    border-radius:6px;
+    border-left:2px solid transparent;
+    transition:.15s;
+  }
+  #sidebar nav a.sub{
+    font-size:13px;
+    padding-left:26px;
+    color:#8a8177;
+  }
+  #sidebar nav a:hover{
+    background:var(--accent-soft);
+    color:var(--ink);
+  }
+  #sidebar nav a.active{
+    background:var(--accent-soft);
+    color:var(--accent);
+    border-left:2px solid var(--accent);
+    font-weight:600;
+  }
+  #sidebar .foot{
+    padding:20px 24px 0;
+    margin-top:16px;
+    font-size:11px;
+    color:#a89f92;
+    border-top:1px solid var(--line);
+  }
+
+  /* ---------- Main ---------- */
+  #main{
+    margin-left:var(--sidebar-w);
+    max-width:840px;
+    padding:56px 56px 120px;
+  }
+  .doc-header{
+    margin-bottom:40px;
+    padding-bottom:28px;
+    border-bottom:2px solid var(--ink);
+  }
+  .doc-header .tag{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.12em;
+    color:var(--accent);
+    text-transform:uppercase;
+  }
+  .doc-header h1{
+    font-family:var(--serif);
+    font-size:34px;
+    line-height:1.35;
+    margin:10px 0 14px;
+  }
+  .doc-header .authors{
+    font-size:14px;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  .doc-header .venue{
+    font-size:13px;
+    color:#a89f92;
+    font-style:italic;
+  }
+  .note-box{
+    background:var(--accent-soft);
+    border-left:3px solid var(--accent);
+    padding:14px 18px;
+    font-size:13.5px;
+    color:#5c4a37;
+    border-radius:4px;
+    margin:24px 0 8px;
+  }
+
+  section.chap{
+    margin-top:64px;
+    scroll-margin-top:28px;
+  }
+  section.chap h2{
+    font-family:var(--serif);
+    font-size:26px;
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+    padding-bottom:12px;
+    border-bottom:1px solid var(--line);
+    margin-bottom:24px;
+  }
+  section.chap h2 .num{
+    font-family:var(--mono);
+    color:var(--accent);
+    font-size:16px;
+  }
+  section.subchap{
+    margin-top:38px;
+    scroll-margin-top:28px;
+  }
+  section.subchap h3{
+    font-family:var(--serif);
+    font-size:20px;
+    color:var(--ink);
+    margin-bottom:14px;
+  }
+  section.subchap h3 .num{
+    font-family:var(--mono);
+    color:var(--accent);
+    font-size:14px;
+    margin-right:6px;
+  }
+  p{margin:0 0 16px; font-size:16px;}
+  .original{
+    font-size:12.5px;
+    color:#a89f92;
+    font-style:italic;
+    margin:-8px 0 16px;
+  }
+  ul, ol{margin:0 0 16px; padding-left:22px;}
+  li{margin-bottom:8px; font-size:16px;}
+
+  .callout{
+    background:#fff;
+    border:1px solid var(--line);
+    border-left:4px solid var(--accent);
+    border-radius:6px;
+    padding:16px 20px;
+    margin:20px 0;
+    font-size:14.5px;
+    color:#4a4238;
+  }
+  .callout .label{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--accent);
+    display:block;
+    margin-bottom:6px;
+  }
+
+  figure{
+    margin:26px 0;
+    padding:18px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:8px;
+  }
+  figcaption{
+    font-size:13px;
+    color:var(--ink-soft);
+    margin-top:10px;
+    text-align:center;
+  }
+  figcaption b{color:var(--ink);}
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:20px 0;
+    font-size:13.5px;
+  }
+  caption{
+    caption-side:top;
+    text-align:left;
+    font-size:13px;
+    color:var(--ink-soft);
+    margin-bottom:8px;
+  }
+  th, td{
+    border:1px solid var(--line);
+    padding:8px 10px;
+    text-align:center;
+  }
+  th{
+    background:var(--accent-soft);
+    font-weight:700;
+    color:#5c4a37;
+  }
+  td:first-child, th:first-child{text-align:left;}
+  tr.highlight td{
+    background:#fdf6ec;
+    font-weight:700;
+  }
+
+  code, .mono{
+    font-family:var(--mono);
+    font-size:.92em;
+    background:var(--code-bg);
+    padding:1px 6px;
+    border-radius:4px;
+  }
+  .formula{
+    display:block;
+    text-align:center;
+    background:#fff;
+    border:1px dashed var(--line);
+    border-radius:6px;
+    padding:16px;
+    margin:18px 0;
+    font-family:var(--mono);
+    font-size:14.5px;
+  }
+
+  .diagram-svg{
+    display:block;
+    margin:0 auto;
+    max-width:100%;
+  }
+
+  .tree-flow{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+    justify-content:center;
+    font-family:var(--mono);
+    font-size:13px;
+    padding:10px 0;
+  }
+  .tree-flow .tok{
+    background:var(--accent-soft);
+    padding:4px 10px;
+    border-radius:5px;
+    color:#5c4a37;
+  }
+  .tree-flow .pop{
+    background:#eadfce;
+    color:#a5866a;
+  }
+  .tree-flow .arrow{color:#c5b8a4;}
+
+  .algo-box{
+    background:#fbf9f4;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:18px 22px;
+    font-family:var(--mono);
+    font-size:13.5px;
+    line-height:1.9;
+    white-space:pre-wrap;
+  }
+  .algo-box .title{
+    font-family:var(--sans);
+    font-weight:700;
+    font-size:14px;
+    display:block;
+    margin-bottom:10px;
+    color:var(--accent);
+  }
+
+  .refs{
+    font-size:13px;
+    color:var(--ink-soft);
+    line-height:1.9;
+  }
+  .refs li{margin-bottom:10px;}
+
+  .contrib-list li::marker{color:var(--accent);}
+
+  #topbtn{
+    position:fixed;
+    right:28px; bottom:28px;
+    width:44px; height:44px;
+    border-radius:50%;
+    background:var(--accent);
+    color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    text-decoration:none;
+    font-size:18px;
+    box-shadow:0 4px 12px rgba(0,0,0,.15);
+    opacity:0;
+    pointer-events:none;
+    transition:.25s;
+    z-index:60;
+  }
+  #topbtn.show{opacity:1; pointer-events:auto;}
+
+  @media (max-width:900px){
+    #sidebar{position:static; width:100%; height:auto; border-right:none; border-bottom:1px solid var(--line);}
+    #main{margin-left:0; padding:32px 22px 100px;}
+  }
+</style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div class="brand">
+    <div class="eyebrow">SIGIR '22 · 論文導讀</div>
+    <h1>受限序列到樹生成<br>階層式文本分類</h1>
+  </div>
+  <nav id="toc">
+    <a href="#abstract" class="active">摘要</a>
+    <a href="#s1">1　緒論</a>
+    <a href="#s2">2　方法論</a>
+    <a href="#s2-1" class="sub">2.1　問題定義</a>
+    <a href="#s2-2" class="sub">2.2　基於 DFS 的標籤線性化</a>
+    <a href="#s2-3" class="sub">2.3　受限解碼的 Seq2Tree</a>
+    <a href="#s3">3　實驗</a>
+    <a href="#s3-1" class="sub">3.1　實驗設定</a>
+    <a href="#s3-2" class="sub">3.2　主要結果</a>
+    <a href="#s3-3" class="sub">3.3　消融實驗</a>
+    <a href="#s4">4　相關工作</a>
+    <a href="#s5">5　結論</a>
+    <a href="#refs">參考文獻</a>
+  </nav>
+  <div class="foot">
+    原文：Chao Yu, Yi Shen, Yue Mao, Longjun Cai（Alibaba Group）<br>
+    《Constrained Sequence-to-Tree Generation for Hierarchical Text Classification》<br>
+    SIGIR '22 · arXiv:2204.00811
+  </div>
+</aside>
+
+<main id="main">
+
+  <div class="doc-header">
+    <div class="tag">中文譯讀・Hierarchical Text Classification</div>
+    <h1>受限序列到樹生成之階層式文本分類方法</h1>
+    <div class="authors">Chao Yu*、Yi Shen*、Yue Mao、Longjun Cai　—　阿里巴巴集團（Alibaba Group），北京</div>
+    <div class="venue">SIGIR '22，2022 年 7 月 11–15 日，西班牙馬德里　·　arXiv:2204.00811v2 [cs.CL]　·　*共同一作</div>
+  </div>
+
+  <div class="note-box">
+    本頁為原論文的忠實中文譯讀整理，依原文章節結構重新編排，並附上圖表與公式的說明，方便左側目錄快速跳轉學習。斜體小字為對應原文段落提示，正文為翻譯與整理內容。
+  </div>
+
+  <!-- ABSTRACT -->
+  <section class="chap" id="abstract">
+    <h2><span class="num">§</span>摘要</h2>
+    <p>階層式文本分類（Hierarchical Text Classification, HTC）是一項具挑戰性的任務：一份文件需要被指派到一個預先定義的分類體系（taxonomy）中、彼此具有階層結構的多個類別上。以往絕大多數研究把 HTC 當作「扁平化的多標籤分類」（flat multi-label classification）問題來處理，這樣的做法必然會導致「標籤不一致」（label inconsistency）問題。本文將 HTC 重新表述為一個序列生成任務，並提出序列到樹（Sequence-to-Tree, <b>Seq2Tree</b>）框架，用以建模階層式的標籤結構。此外，本文設計了一種帶有動態詞表（dynamic vocabulary）的受限解碼（constrained decoding）策略，以確保生成結果的標籤一致性。相較於既有方法，本文所提出的方法在三個基準資料集上都取得了顯著且一致的效能提升。</p>
+  </section>
+
+  <!-- 1 INTRODUCTION -->
+  <section class="chap" id="s1">
+    <h2><span class="num">1</span>緒論</h2>
+    <p>階層式文本分類是一種特殊的多標籤文本分類問題，其目標是將每份文件指派到一個分類體系（taxonomic hierarchy）中一組相關的節點上，如下方圖 1(a) 所示。HTC 有許多實際應用場景，例如商品類目分類、細粒度實體類型識別，以及新聞分類等。</p>
+
+    <p>既有方法大致可分為兩類：<b>局部方法（local approaches）</b>與<b>全局方法（global approaches）</b>。局部方法傾向於為不同層級建構多個局部分類器，但通常會忽略分類體系的整體結構資訊。近年來全局方法已成為 HTC 的主流做法——使用單一模型同時處理所有類別，並引入各種策略來捕捉標籤空間的階層資訊，例如動態路由（dynamic routing）、雙曲空間標籤嵌入（hyperbolic label embedding）、Tree-LSTM 與圖卷積網路（GCN）等。然而，由於這些方法本質上仍是把 HTC 視為扁平化的多標籤分類任務，它們的分類結果都會遭遇「標籤不一致」的問題。</p>
+
+    <figure>
+      <div class="tree-flow" style="justify-content:space-around;">
+        <div style="text-align:center;">
+          <div style="font-family:var(--serif); font-weight:700; margin-bottom:6px;">(a) 真實標籤（Ground Truth）</div>
+          <svg class="diagram-svg" width="290" height="200" viewBox="0 0 290 200" xmlns="http://www.w3.org/2000/svg">
+            <line x1="145" y1="30" x2="80" y2="70" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="145" y1="30" x2="210" y2="70" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="80" y1="70" x2="55" y2="110" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="80" y1="70" x2="105" y2="110" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="210" y1="70" x2="185" y2="110" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="210" y1="70" x2="240" y2="110" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="55" y1="110" x2="40" y2="150" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="55" y1="110" x2="70" y2="150" stroke="#c9bda6" stroke-width="1.5"/>
+            <circle cx="145" cy="30" r="16" fill="#eadfce"/><text x="145" y="34" font-size="10" text-anchor="middle">Root</text>
+            <circle cx="80" cy="70" r="18" fill="#8a5a3b"/><text x="80" y="74" font-size="9" fill="#fff" text-anchor="middle">娛樂</text>
+            <circle cx="210" cy="70" r="18" fill="#8a5a3b"/><text x="210" y="74" font-size="9" fill="#fff" text-anchor="middle">商業</text>
+            <circle cx="55" cy="110" r="16" fill="#8a5a3b"/><text x="55" y="114" font-size="9" fill="#fff" text-anchor="middle">電影</text>
+            <circle cx="105" cy="110" r="16" fill="#eadfce"/><text x="105" y="114" font-size="9" text-anchor="middle">電視</text>
+            <circle cx="185" cy="110" r="16" fill="#8a5a3b"/><text x="185" y="114" font-size="9" fill="#fff" text-anchor="middle">公司</text>
+            <circle cx="240" cy="110" r="16" fill="#eadfce"/><text x="240" y="114" font-size="9" text-anchor="middle">政策</text>
+            <circle cx="40" cy="150" r="16" fill="#8a5a3b"/><text x="40" y="154" font-size="9" fill="#fff" text-anchor="middle">紀錄片</text>
+            <circle cx="70" cy="150" r="16" fill="#eadfce"/><text x="70" y="154" font-size="9" text-anchor="middle">動作片</text>
+          </svg>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-family:var(--serif); font-weight:700; margin-bottom:6px;">(b) 標籤不一致的預測</div>
+          <svg class="diagram-svg" width="290" height="200" viewBox="0 0 290 200" xmlns="http://www.w3.org/2000/svg">
+            <line x1="145" y1="30" x2="80" y2="70" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="145" y1="30" x2="210" y2="70" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="80" y1="70" x2="55" y2="110" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="80" y1="70" x2="105" y2="110" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="210" y1="70" x2="185" y2="110" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="210" y1="70" x2="240" y2="110" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="55" y1="110" x2="40" y2="150" stroke="#c9bda6" stroke-width="1.5"/>
+            <line x1="55" y1="110" x2="70" y2="150" stroke="#c9bda6" stroke-width="1.5"/>
+            <circle cx="145" cy="30" r="16" fill="#eadfce"/><text x="145" y="34" font-size="10" text-anchor="middle">Root</text>
+            <circle cx="80" cy="70" r="18" fill="#eadfce"/><text x="80" y="74" font-size="9" text-anchor="middle">娛樂</text>
+            <circle cx="210" cy="70" r="18" fill="#8a5a3b"/><text x="210" y="74" font-size="9" fill="#fff" text-anchor="middle">商業</text>
+            <circle cx="55" cy="110" r="16" fill="#eadfce"/><text x="55" y="114" font-size="9" text-anchor="middle">電影</text>
+            <circle cx="105" cy="110" r="16" fill="#eadfce"/><text x="105" y="114" font-size="9" text-anchor="middle">電視</text>
+            <circle cx="185" cy="110" r="16" fill="#8a5a3b"/><text x="185" y="114" font-size="9" fill="#fff" text-anchor="middle">公司</text>
+            <circle cx="240" cy="110" r="16" fill="#eadfce"/><text x="240" y="114" font-size="9" text-anchor="middle">政策</text>
+            <circle cx="40" cy="150" r="16" fill="#c9522f"/><text x="40" y="154" font-size="9" fill="#fff" text-anchor="middle">紀錄片</text>
+            <circle cx="70" cy="150" r="16" fill="#eadfce"/><text x="70" y="154" font-size="9" text-anchor="middle">動作片</text>
+          </svg>
+        </div>
+      </div>
+      <figcaption><b>圖 1　分類體系範例（對應原文 Figure 1）</b>：(a) 輸入文件（電影《社群網戰》介紹 Facebook 創業史）的真實標籤路徑為 <span class="mono">Root→娛樂→電影→紀錄片</span> 與 <span class="mono">Root→商業→公司</span>；(b) 傳統多標籤分類可能只預測出「商業→公司」與孤立的「紀錄片」節點（橘色），「紀錄片」脫離了它應有的父節點路徑，形成孤立且不一致的預測。</figcaption>
+    </figure>
+
+    <p>如圖 1(a) 所示，輸入文件的真實標籤（綠色節點）分屬兩條路徑；而傳統多標籤分類方法可能產生如圖 1(b) 的預測結果，出現如「紀錄片」（Documentary）與「公司」（Company）這類孤立節點——它們依照傳統的 HTC 評估指標，仍會被視為有效的正確預測。然而，由於 HTC 任務的本質，每個節點的預測結果理應與其祖先節點的預測結果保持一致，不應互相衝突。這種孤立預測與「路徑不一致」的現象，無法滿足許多實際應用場景的需求。本文的目標即是解決 HTC 中的這個「標籤不一致」問題。</p>
+
+    <p>為了讓分類結果滿足「標籤一致性」，我們必須聚焦於分類體系中<b>路徑內的標籤依賴關係</b>，而非個別節點。本文將此與樹狀結構的<b>深度優先走訪演算法（DFS）</b>相結合——DFS 能確保同一路徑上的節點以「由上而下」的順序被走訪到。受先前一些將序列生成方法用於各類 NLP 任務的研究啟發，本文提出序列到樹（Seq2Tree）框架來處理 HTC：首先利用 DFS 將階層式標籤轉換為線性化的標籤序列，再以傳統 seq2seq 的方式，將文件文本映射到對應的標籤序列。此外，本文設計了一種<b>受限解碼策略（Constrained Decoding, CD）</b>，利用階層式的標籤依賴關係來引導生成過程：每個時間步所產生的候選標籤，會被限制在上一時間步生成節點的子節點範圍內。這樣一來，除了確保結果的標籤一致性之外，本方法在訓練過程中也能充分利用階層式標籤的語意與結構資訊。</p>
+
+    <div class="callout">
+      <span class="label">本文主要貢獻</span>
+      <ol class="contrib-list" style="margin-bottom:0;">
+        <li>提出一個帶有受限解碼策略的序列到樹生成框架，可有效保證 HTC 結果的標籤一致性；</li>
+        <li>提出兩項新的 HTC 評估指標：<b>C-MicroF1</b> 與 <b>C-MacroF1</b>，比現有指標更合理、更貼近實際應用場景；</li>
+        <li>在三個基準資料集上進行實驗，結果顯示本方法在傳統評估指標與本文提出的新指標上，皆優於既有的強力基準方法。</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 2 METHODOLOGY -->
+  <section class="chap" id="s2">
+    <h2><span class="num">2</span>方法論</h2>
+    <p>本文的目標是利用序列生成架構來解決 HTC 任務。為此，需要先將分類體系轉換為序列（即「標籤線性化」）。本節先給出問題定義，接著分別介紹標籤線性化（LL）方法，以及具備受限解碼策略（CD）的模型架構。</p>
+
+    <section class="subchap" id="s2-1">
+      <h3><span class="num">2.1</span>問題定義</h3>
+      <p>將 HTC 任務表述為映射 <span class="mono">F: (X, T) → Y</span>，其中 <span class="mono">X = {X₁, ..., X_N}</span> 表示輸入文件集合，<span class="mono">T = {V, E}</span> 為預先定義的分類體系（<span class="mono">V</span> 為標籤節點集合，<span class="mono">E</span> 表示節點之間的父子關係），<span class="mono">Y = {Y₁, ..., Y_N}</span> 為文件集合對應的目標標籤集合。任務目標是學習一個模型 <span class="mono">F</span>，將新文件 <span class="mono">Xᵢ = {x₁, ..., x|Xᵢ|}</span> 映射到其目標標籤集合 <span class="mono">Yᵢ = {y₁, ..., y_ki}</span>（<span class="mono">Yᵢ ⊆ T</span>），其中 <span class="mono">kᵢ</span> 為標籤數量，且 <span class="mono">kᵢ ≤ |V|</span>。</p>
+    </section>
+
+    <section class="subchap" id="s2-2">
+      <h3><span class="num">2.2</span>基於 DFS 的標籤線性化</h3>
+      <p>標籤線性化（Label Linearization, LL）的做法十分直觀：依循 DFS 演算法進行。如圖 2 所示，文件的目標標籤 <span class="mono">Yᵢ</span> 構成分類體系 <span class="mono">T</span> 的一個子樹。依 DFS 演算法，這些標籤可被線性化為：</p>
+
+      <div class="tree-flow">
+        <span class="tok">Root</span><span class="arrow">→</span>
+        <span class="tok">娛樂</span><span class="arrow">→</span>
+        <span class="tok">電影</span><span class="arrow">→</span>
+        <span class="tok">紀錄片</span><span class="arrow">→</span>
+        <span class="tok pop">POP</span><span class="arrow">→</span>
+        <span class="tok pop">POP</span><span class="arrow">→</span>
+        <span class="tok pop">POP</span><span class="arrow">→</span>
+        <span class="tok">商業</span><span class="arrow">→</span>
+        <span class="tok">公司</span><span class="arrow">→</span>
+        <span class="tok pop">POP</span><span class="arrow">→</span>
+        <span class="tok pop">POP</span>
+      </div>
+
+      <p>其中 <span class="mono">POP</span> 代表「回溯」操作，通常在走訪到子樹的葉節點之後立即執行。例如圖 2 中，當走訪到葉節點「紀錄片」後，必須連續執行三次 <span class="mono">POP</span> 才能回到 Root 節點，開始一條新的路徑 <span class="mono">{Root-商業-公司}</span>。由於 DFS 演算法是可逆的，這種基於 DFS 的線性化方式，等同於把分類體系的結構資訊注入到標籤序列之中。</p>
+
+      <figure>
+        <svg class="diagram-svg" width="620" height="230" viewBox="0 0 620 230" xmlns="http://www.w3.org/2000/svg">
+          <line x1="120" y1="30" x2="60" y2="70" stroke="#c9bda6" stroke-width="1.5"/>
+          <line x1="120" y1="30" x2="180" y2="70" stroke="#c9bda6" stroke-width="1.5"/>
+          <line x1="60" y1="70" x2="35" y2="110" stroke="#c9bda6" stroke-width="1.5"/>
+          <line x1="60" y1="70" x2="85" y2="110" stroke="#c9bda6" stroke-width="1.5"/>
+          <line x1="180" y1="70" x2="155" y2="110" stroke="#c9bda6" stroke-width="1.5"/>
+          <line x1="180" y1="70" x2="205" y2="110" stroke="#c9bda6" stroke-width="1.5"/>
+          <line x1="35" y1="110" x2="20" y2="150" stroke="#c9bda6" stroke-width="1.5"/>
+          <line x1="35" y1="110" x2="50" y2="150" stroke="#c9bda6" stroke-width="1.5"/>
+          <circle cx="120" cy="30" r="16" fill="#eadfce"/><text x="120" y="34" font-size="10" text-anchor="middle">Root</text>
+          <circle cx="60" cy="70" r="18" fill="#8a5a3b"/><text x="60" y="74" font-size="9" fill="#fff" text-anchor="middle">娛樂</text>
+          <circle cx="180" cy="70" r="18" fill="#8a5a3b"/><text x="180" y="74" font-size="9" fill="#fff" text-anchor="middle">商業</text>
+          <circle cx="35" cy="110" r="16" fill="#8a5a3b"/><text x="35" y="114" font-size="9" fill="#fff" text-anchor="middle">電影</text>
+          <circle cx="85" cy="110" r="16" fill="#eadfce"/><text x="85" y="114" font-size="9" text-anchor="middle">電視</text>
+          <circle cx="155" cy="110" r="16" fill="#8a5a3b"/><text x="155" y="114" font-size="9" fill="#fff" text-anchor="middle">公司</text>
+          <circle cx="205" cy="110" r="16" fill="#eadfce"/><text x="205" y="114" font-size="9" text-anchor="middle">政策</text>
+          <circle cx="20" cy="150" r="16" fill="#8a5a3b"/><text x="20" y="154" font-size="9" fill="#fff" text-anchor="middle">紀錄片</text>
+          <circle cx="50" cy="150" r="16" fill="#eadfce"/><text x="50" y="154" font-size="9" text-anchor="middle">動作片</text>
+
+          <line x1="250" y1="120" x2="290" y2="120" stroke="#8a5a3b" stroke-width="2" marker-end="url(#arrow)"/>
+          <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#8a5a3b"/></marker></defs>
+
+          <g font-family="monospace" font-size="12">
+            <text x="310" y="40" fill="#6b6259">Level:</text>
+            <text x="400" y="40" fill="#8a5a3b">0</text>
+            <text x="440" y="40" fill="#8a5a3b">1</text>
+            <text x="480" y="40" fill="#8a5a3b">2</text>
+            <text x="520" y="40" fill="#8a5a3b">3</text>
+
+            <rect x="310" y="60" width="40" height="22" fill="#eadfce" rx="3"/><text x="330" y="75" text-anchor="middle">Root</text>
+            <rect x="358" y="60" width="46" height="22" fill="#eadfce" rx="3"/><text x="381" y="75" text-anchor="middle">娛樂</text>
+            <rect x="412" y="60" width="46" height="22" fill="#eadfce" rx="3"/><text x="435" y="75" text-anchor="middle">電影</text>
+            <rect x="466" y="60" width="60" height="22" fill="#eadfce" rx="3"/><text x="496" y="75" text-anchor="middle" font-size="10">紀錄片</text>
+
+            <rect x="466" y="95" width="52" height="20" fill="#c9522f" rx="3"/><text x="492" y="109" text-anchor="middle" fill="#fff" font-size="10">POP</text>
+            <rect x="412" y="95" width="52" height="20" fill="#c9522f" rx="3"/><text x="438" y="109" text-anchor="middle" fill="#fff" font-size="10">POP</text>
+            <rect x="358" y="95" width="52" height="20" fill="#c9522f" rx="3"/><text x="384" y="109" text-anchor="middle" fill="#fff" font-size="10">POP</text>
+
+            <rect x="310" y="130" width="46" height="22" fill="#eadfce" rx="3"/><text x="333" y="145" text-anchor="middle">商業</text>
+            <rect x="360" y="130" width="46" height="22" fill="#eadfce" rx="3"/><text x="383" y="145" text-anchor="middle">公司</text>
+            <rect x="412" y="130" width="52" height="20" fill="#c9522f" rx="3"/><text x="438" y="144" text-anchor="middle" fill="#fff" font-size="10">POP</text>
+            <rect x="358" y="160" width="52" height="20" fill="#c9522f" rx="3"/><text x="384" y="174" text-anchor="middle" fill="#fff" font-size="10">POP</text>
+          </g>
+        </svg>
+        <figcaption><b>圖 2　基於 DFS 的標籤線性化範例（對應原文 Figure 2）</b>：左側為分類體系子樹（綠色＝真實標籤），右側為將其攤平後的 DFS 標籤序列，橘紅色方塊代表 <span class="mono">POP</span>（回溯）操作。序列以 <span class="mono">&lt;bos&gt;</span> 開始，以 <span class="mono">&lt;eos&gt;</span> 結束。</figcaption>
+      </figure>
+    </section>
+
+    <section class="subchap" id="s2-3">
+      <h3><span class="num">2.3</span>受限解碼的 Seq2Tree</h3>
+      <p>與傳統 Seq2Seq 範式相同，Seq2Tree 同樣由兩個部分組成：<b>編碼器（Encoder）</b>與<b>解碼器（Decoder）</b>，其架構如圖 3 所示。</p>
+
+      <p><b>編碼器：</b>給定輸入序列 <span class="mono">Xᵢ</span>，編碼器將其編碼為隱藏向量表示 <span class="mono">Hᵢ = {h₁, ..., h|Xᵢ|}</span>：</p>
+      <div class="formula">Hᵢ = Encoder(x₁, ..., x|Xᵢ|)　　（公式 1）</div>
+
+      <p><b>解碼器：</b>輸入序列編碼完成後，解碼器逐步預測 DFS 標籤序列。具體而言，在生成的第 <span class="mono">i</span> 個時間步，解碼器根據上一時間步生成的詞元 <span class="mono">ŷᵢ₋₁</span>，預測第 <span class="mono">i</span> 個詞元 <span class="mono">ŷᵢ</span> 及其對應的解碼器狀態：</p>
+      <div class="formula">ŷᵢ, hᵈᵢ = Decoder_c([Hᵢ, hᵈ&lt;ᵢ], ŷᵢ₋₁, T),　　ŷᵢ ∈ DV_ŷᵢ　　（公式 2）</div>
+      <p>其中 <span class="mono">Decoder_c</span> 表示帶有受限解碼（CD）的解碼器，<span class="mono">hᵈ&lt;ᵢ</span> 為先前時間步的解碼器狀態。輸出序列以詞元 <span class="mono">&lt;bos&gt;</span> 開始，以 <span class="mono">&lt;eos&gt;</span> 結束。<span class="mono">DV_ŷᵢ</span> 表示生成 <span class="mono">ŷᵢ</span> 時所使用的動態詞表，其產生過程詳見演算法 1。</p>
+
+      <p>在預測 <span class="mono">ŷᵢ</span> 時，會執行帶動態詞表的 CD 策略。在大多數情況下，候選詞元會被限制在分類體系 <span class="mono">T</span> 中、由標籤依賴關係所決定的 <span class="mono">ŷ_cur</span>（目前所在節點）的子節點範圍內。如圖 3 所示，模型需要決定第 4 個解碼時間步應生成哪個標籤——由於模型上一步生成了「電影」，根據 <span class="mono">T</span> 的標籤依賴關係，候選詞表被限制為 <span class="mono">{POP, 紀錄片, 動作片}</span>，而非整個詞表。如此一來，便能在解碼過程中確保標籤一致性。</p>
+
+      <figure>
+        <svg class="diagram-svg" width="640" height="330" viewBox="0 0 640 330" xmlns="http://www.w3.org/2000/svg">
+          <!-- taxonomy -->
+          <text x="130" y="20" font-size="11" fill="#8a5a3b" font-family="monospace">分類體系（Taxonomic Hierarchy）</text>
+          <line x1="130" y1="40" x2="80" y2="72" stroke="#c9bda6" stroke-width="1.3"/>
+          <line x1="130" y1="40" x2="180" y2="72" stroke="#c9bda6" stroke-width="1.3"/>
+          <line x1="80" y1="72" x2="55" y2="104" stroke="#c9bda6" stroke-width="1.3"/>
+          <line x1="80" y1="72" x2="105" y2="104" stroke="#c9bda6" stroke-width="1.3"/>
+          <line x1="180" y1="72" x2="155" y2="104" stroke="#c9bda6" stroke-width="1.3"/>
+          <line x1="180" y1="72" x2="205" y2="104" stroke="#c9bda6" stroke-width="1.3"/>
+          <line x1="55" y1="104" x2="40" y2="136" stroke="#c9bda6" stroke-width="1.3"/>
+          <line x1="55" y1="104" x2="70" y2="136" stroke="#c9bda6" stroke-width="1.3"/>
+          <circle cx="130" cy="40" r="13" fill="#eadfce"/><text x="130" y="43" font-size="8" text-anchor="middle">Root</text>
+          <circle cx="80" cy="72" r="14" fill="#8a5a3b"/><text x="80" y="75" font-size="7.5" fill="#fff" text-anchor="middle">娛樂</text>
+          <circle cx="180" cy="72" r="14" fill="#eadfce"/><text x="180" y="75" font-size="7.5" text-anchor="middle">商業</text>
+          <circle cx="55" cy="104" r="13" fill="#8a5a3b"/><text x="55" y="107" font-size="7.5" fill="#fff" text-anchor="middle">電影</text>
+          <circle cx="105" cy="104" r="13" fill="#eadfce"/><text x="105" y="107" font-size="7.5" text-anchor="middle">電視</text>
+          <circle cx="155" cy="104" r="13" fill="#eadfce"/><text x="155" y="107" font-size="7.5" text-anchor="middle">公司</text>
+          <circle cx="205" cy="104" r="13" fill="#eadfce"/><text x="205" y="107" font-size="7.5" text-anchor="middle">政策</text>
+          <circle cx="40" cy="136" r="13" fill="#c9dcb8"/><text x="40" y="139" font-size="7" text-anchor="middle">紀錄片</text>
+          <circle cx="70" cy="136" r="13" fill="#c9dcb8"/><text x="70" y="139" font-size="7" text-anchor="middle">動作片</text>
+
+          <line x1="230" y1="100" x2="290" y2="100" stroke="#8a5a3b" stroke-width="2" marker-end="url(#arrow2)"/>
+          <text x="235" y="90" font-size="9" fill="#6b6259">標籤依賴</text>
+          <defs><marker id="arrow2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#8a5a3b"/></marker></defs>
+
+          <!-- dynamic vocab -->
+          <text x="330" y="20" font-size="11" fill="#8a5a3b" font-family="monospace">動態詞表（Dynamic Vocabulary）</text>
+          <rect x="330" y="35" width="260" height="90" fill="#fff" stroke="#ddd3c2" rx="6"/>
+          <text x="345" y="55" font-size="10">POP</text><rect x="450" y="47" width="30" height="8" fill="#eadfce"/>
+          <text x="345" y="80" font-size="10" font-style="italic">紀錄片</text><rect x="450" y="72" width="80" height="8" fill="#8a5a3b"/><text x="536" y="80" font-size="9">0.5</text>
+          <text x="345" y="105" font-size="10" font-style="italic">動作片</text><rect x="450" y="97" width="48" height="8" fill="#b8875f"/><text x="502" y="105" font-size="9">0.3</text>
+
+          <!-- encoder decoder -->
+          <rect x="60" y="200" width="220" height="46" rx="8" fill="#dcead0"/>
+          <text x="170" y="228" text-anchor="middle" font-size="13" font-weight="700">編碼器 Encoder</text>
+          <rect x="330" y="200" width="220" height="46" rx="8" fill="#cfe0f0"/>
+          <text x="440" y="228" text-anchor="middle" font-size="13" font-weight="700">解碼器 Decoder</text>
+          <line x1="282" y1="223" x2="326" y2="223" stroke="#6b6259" stroke-width="2" marker-end="url(#arrow3)"/>
+          <defs><marker id="arrow3" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#6b6259"/></marker></defs>
+
+          <rect x="60" y="270" width="220" height="30" rx="4" fill="#fff" stroke="#ddd3c2"/>
+          <text x="170" y="290" text-anchor="middle" font-size="9">電影《社群網戰》介紹 Facebook 創業史</text>
+          <line x1="170" y1="270" x2="170" y2="246" stroke="#6b6259" stroke-width="2" marker-end="url(#arrow4)"/>
+          <defs><marker id="arrow4" markerWidth="8" markerHeight="8" refX="6" refY="6" orient="auto"><path d="M0,6 L6,6 L3,0 Z" fill="#6b6259"/></marker></defs>
+
+          <g font-family="monospace" font-size="10">
+            <rect x="340" y="270" width="34" height="22" fill="#cfe0f0" stroke="#8ab0d0"/><text x="357" y="285" text-anchor="middle">1</text>
+            <rect x="380" y="270" width="34" height="22" fill="#cfe0f0" stroke="#8ab0d0"/><text x="397" y="285" text-anchor="middle">2</text>
+            <rect x="420" y="270" width="34" height="22" fill="#cfe0f0" stroke="#8ab0d0"/><text x="437" y="285" text-anchor="middle">3</text>
+            <rect x="460" y="270" width="34" height="22" fill="#f4c9b0" stroke="#c9522f"/><text x="477" y="285" text-anchor="middle">4</text>
+            <text x="357" y="308" text-anchor="middle" font-size="8">&lt;BOS&gt;</text>
+            <text x="397" y="308" text-anchor="middle" font-size="8">Root</text>
+            <text x="437" y="308" text-anchor="middle" font-size="8">娛樂</text>
+            <text x="477" y="308" text-anchor="middle" font-size="8">電影</text>
+          </g>
+        </svg>
+        <figcaption><b>圖 3　Seq2Tree 整體架構（對應原文 Figure 3）</b>：文件文本經編碼器編碼後送入解碼器；解碼器在第 4 步時，依據上一步生成的「電影」節點，從分類體系中查出其子節點，動態產生候選詞表 <span class="mono">{POP, 紀錄片, 動作片}</span>（右上方長條圖為各候選詞的機率分布），而非在整個詞表上開放搜索。</figcaption>
+      </figure>
+
+      <p>訓練階段，每筆樣本為一組（文本序列, 線性化標籤序列）配對，訓練目標定義為以下負對數概似損失（negative log likelihood loss）：</p>
+      <div class="formula">
+        L = − Σ_(X, Ŷ)∈(X, Ŷ)　log( P_θ(Ŷ | X, T) )　　（公式 3）<br><br>
+        P_θ(Ŷ | X, T) = ∏ᵢ P_θ(ŷᵢ | ŷ&lt;ᵢ, X, T)　　（公式 4）
+      </div>
+      <p>其中 <span class="mono">θ</span> 為模型參數，<span class="mono">ŷ&lt;ᵢ</span> 表示先前已生成的標籤。<span class="mono">P_θ(ŷᵢ | ŷ&lt;ᵢ, X, T)</span> 是在動態候選詞表 <span class="mono">DV_ŷᵢ</span> 上的機率分布，透過 <span class="mono">softmax(·)</span> 正規化得到。</p>
+
+      <div class="algo-box">
+<span class="title">演算法 1　動態詞表生成（Dynamic Vocabulary Generation）</span>輸入：已生成的詞元 ŷ₁, ..., ŷᵢ₋₁；分類體系 T
+輸出：動態詞表 DV_ŷᵢ
+
+NodeStack = ()
+for j = 0 to i − 1:
+    if ŷⱼ is POP:
+        NodeStack.pop()
+    else:
+        NodeStack.add(ŷⱼ)
+
+ŷ_cur = NodeStack.pop()
+if ŷ_cur is 葉節點 (Leaf Node):
+    DV_ŷᵢ = {POP}
+else:
+    DV_ŷᵢ = { child_T(ŷ_cur), POP }
+
+return DV_ŷᵢ</div>
+
+      <p>亦即，演算法會用一個節點堆疊（NodeStack）來追蹤目前所在路徑：遇到非 <span class="mono">POP</span> 的詞元就入堆疊，遇到 <span class="mono">POP</span> 就出堆疊；取出堆疊頂端節點作為目前節點 <span class="mono">ŷ_cur</span>，若該節點是葉節點，則唯一合法的下一步只能是 <span class="mono">POP</span>；否則合法的下一步是該節點在 <span class="mono">T</span> 中的所有子節點，加上 <span class="mono">POP</span>（代表提前結束該子路徑）。</p>
+
+      <p>推論階段，本文採用集束搜索（beam search）策略生成輸出標籤序列：</p>
+      <div class="formula">
+        Ŷ* = argmax_Ŷ　log( P_θ*(Ŷ | X, T) )<br>
+        &nbsp;&nbsp;&nbsp; = argmax_(Ŷ:{ŷ₁,...,ŷ_ki})　log ∏ᵢ P_θ*(ŷᵢ | ŷ&lt;ᵢ, X, T)　　（公式 5）
+      </div>
+      <p>最終得到預測標籤序列 <span class="mono">Ŷ* = {ŷ₁*, ..., ŷ_ki*}</span>。本文以 <b>T5-Base</b> 作為骨幹網路來實現 Seq2Tree，更多實作細節詳見第 3.1 節。</p>
+    </section>
+  </section>
+
+  <!-- 3 EXPERIMENT -->
+  <section class="chap" id="s3">
+    <h2><span class="num">3</span>實驗</h2>
+
+    <section class="subchap" id="s3-1">
+      <h3><span class="num">3.1</span>實驗設定</h3>
+      <p><b>資料集：</b>本文在三個廣泛使用的 HTC 資料集上進行評估，包括 <b>RCV1-V2</b>、<b>WOS</b> 與 <b>BGC</b>。這些資料集的類別皆呈樹狀階層結構，且沿用先前研究相同的資料切分方式。值得注意的是，WOS 屬於單路徑（single-path）HTC，而 RCV1-V2 與 BGC 皆為多路徑（multi-path）HTC。詳細統計資訊見表 2。</p>
+
+      <table>
+        <caption>表 2　資料集統計資訊（對應原文 Table 2）。|V| 為標籤總數；Depth 為標籤階層最大深度；Avg(|V|) 為每筆樣本平均標籤數。</caption>
+        <thead>
+          <tr><th>資料集</th><th>|V|</th><th>Depth</th><th>Avg(|V|)</th><th>訓練集</th><th>驗證集</th><th>測試集</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>RCV1-V2</td><td>103</td><td>4</td><td>3.24</td><td>20,833</td><td>2,316</td><td>781,265</td></tr>
+          <tr><td>WOS</td><td>141</td><td>2</td><td>2</td><td>30,070</td><td>7,518</td><td>9,397</td></tr>
+          <tr><td>BGC</td><td>146</td><td>4</td><td>3.01</td><td>58,715</td><td>14,785</td><td>18,394</td></tr>
+        </tbody>
+      </table>
+
+      <p><b>基準方法：</b>本文將所提方法與以下 HTC 模型進行比較：SGM、HMC-Capsule、HiLAP-RL、HiAGM、HTCInfoMax、HiMatch 及 HiMatch-BERT。由於 SGM 同樣是生成式的 HTC 方法，本文另外實作了一個變體 <b>SGM-T5</b>（將原本以 LSTM 為基礎的編解碼器骨幹替換為 T5）以進行公平比較。在這些基準方法中，<b>HiMatch-BERT</b> 是當前最先進（state-of-the-art）的模型。此外，<b>HiLAP-RL</b> 是唯一嘗試處理「標籤不一致」問題的方法，它利用深度強化學習來解決此議題；該研究也提到「標籤不一致」問題可透過後處理（post-processing）方式解決，即簡單地將孤立節點的祖先節點也一併指派為預測結果。因此，本文也在 HiMatch-BERT 上實作了此後處理方法，以驗證其實際效果。</p>
+
+      <p><b>評估指標：</b>除了既有研究廣泛採用的 Micro-F1 與 Macro-F1 之外，本文提出兩項新指標：<b>路徑受限的 Micro-F1（C-MicroF1）</b>與<b>路徑受限的 Macro-F1（C-MacroF1）</b>。這兩個新指標與傳統指標的差異在於：只有當某節點的所有祖先節點也都被正確預測為「真」時，該節點的預測結果才會被視為「真」。以圖 1(b) 為例，儘管模型對「紀錄片」與「公司」做出了正確的預測，但由於它們的父節點預測有誤，這兩個節點的結果在新指標下仍會被視為「假」。</p>
+
+      <p><b>實作細節：</b>所有資料集的批次大小（batch size）皆設為 16，並搭配標籤平滑（label smoothing）與 AdamW 優化器進行訓練，學習率為 5e-5。實驗報告的結果皆為 5 次不同隨機種子的平均分數。所有實驗皆在單張 Tesla V100M32 GPU 上完成。此外，在解碼階段，先前已生成過的詞元也會從後續的動態詞表中排除。</p>
+    </section>
+
+    <section class="subchap" id="s3-2">
+      <h3><span class="num">3.2</span>主要結果</h3>
+      <p>詳細實驗結果列於表 1，本文所提出的 Seq2Tree 在所有資料集上皆一致優於既有方法。與 SGM-T5 相比，Seq2Tree 同樣以顯著差距勝出，這驗證了效能提升主要來自於本文的框架設計，而非單純受惠於 T5 骨幹模型本身。整體而言，Seq2Tree 在 C-MicroF1 與 C-MacroF1 上的效能提升，比在傳統 MicroF1 與 MacroF1 上更為顯著——這是因為 Seq2Tree 透過 CD 策略確保了每條路徑上的標籤一致性。值得注意的是，後處理方法並未帶來效能提升，反而使結果下降：原因在於 HiMatch-BERT 本身無法保證孤立節點預測的準確性，單純為其指派祖先節點反而引入大量雜訊，導致 HiMatch-BERT+pp 效能下降。</p>
+
+      <table>
+        <caption>表 1　三個資料集上各方法的實驗結果（節錄自原文 Table 1）。「*」代表本文自行實作之結果；「↑」代表本方法相較 HiMatch-BERT 的提升幅度。</caption>
+        <thead>
+          <tr>
+            <th rowspan="2">模型</th>
+            <th colspan="2">RCV1-V2</th>
+            <th colspan="2">WOS</th>
+            <th colspan="2">BGC</th>
+          </tr>
+          <tr>
+            <th>Micro F1</th><th>Macro F1</th>
+            <th>Micro F1</th><th>Macro F1</th>
+            <th>Micro F1</th><th>Macro F1</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>SGM-T5*</td><td>84.39</td><td>65.09</td><td>85.83</td><td>80.79</td><td>77.84</td><td>60.91</td></tr>
+          <tr><td>HiAGM</td><td>83.96</td><td>63.35</td><td>85.82</td><td>80.28</td><td>77.22*</td><td>57.91*</td></tr>
+          <tr><td>HiMatch</td><td>84.73</td><td>64.11</td><td>86.20</td><td>80.53</td><td>76.57*</td><td>58.34*</td></tr>
+          <tr><td>HiMatch-BERT</td><td>86.33</td><td>68.66</td><td>86.70</td><td>81.06</td><td>78.89*</td><td>63.19*</td></tr>
+          <tr><td>HiMatch-BERT + pp</td><td>85.37*</td><td>67.01*</td><td>85.86*</td><td>80.18*</td><td>77.59*</td><td>62.05*</td></tr>
+          <tr class="highlight"><td>Seq2Tree（本文）</td><td>86.88↑0.55</td><td>70.01↑1.35</td><td>87.20↑0.50</td><td>82.50↑1.44</td><td>79.72↑0.83</td><td>63.96↑0.77</td></tr>
+        </tbody>
+      </table>
+      <p class="original">註：完整表格另含 C-MicroF1、C-MacroF1 欄位，Seq2Tree 在這兩項新指標上的提升幅度更大（RCV1-V2 上 C-MicroF1 提升 1.63、C-MacroF1 提升 2.86；細節見原文 Table 1）。</p>
+    </section>
+
+    <section class="subchap" id="s3-3">
+      <h3><span class="num">3.3</span>消融實驗</h3>
+      <p>為了呈現標籤線性化（LL）與受限解碼策略（CD）各自的效果，本文依序移除 CD 與 LL，實作出 Seq2Tree 的不同變體，並在 RCV1-V2 上進行實驗，結果列於表 3。移除 CD 會導致效能明顯下降，證實了其有效性；當 CD 與 LL 都被移除時，效能會進一步下降，這說明透過 DFS 融入分類體系整體樹狀結構資訊的重要性。</p>
+
+      <table>
+        <caption>表 3　RCV1-V2 上的消融實驗結果（對應原文 Table 3）。當 CD 與 LL 皆移除時，Seq2Tree 即等同於 SGM-T5。</caption>
+        <thead>
+          <tr><th>模型</th><th>Micro F1</th><th>C-Micro F1</th><th>Macro F1</th><th>C-Macro F1</th></tr>
+        </thead>
+        <tbody>
+          <tr class="highlight"><td>Seq2Tree</td><td>86.88</td><td>86.88</td><td>70.01</td><td>70.01</td></tr>
+          <tr><td>w/o CD</td><td>85.31</td><td>84.98</td><td>66.23</td><td>65.15</td></tr>
+          <tr><td>w/o CD &amp; LL</td><td>84.39</td><td>83.75</td><td>65.09</td><td>64.55</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </section>
+
+  <!-- 4 RELATED WORK -->
+  <section class="chap" id="s4">
+    <h2><span class="num">4</span>相關工作</h2>
+    <p>既有的 HTC 研究可歸為局部方法與全局方法兩類。局部方法傾向於建構多個局部分類器，通常忽略了分類體系的整體結構資訊。作為近年 HTC 研究的主流，全局方法使用單一模型處理所有類別，並引入各種策略捕捉標籤空間的階層資訊。例如：以階層式網路搭配改良版動態路由演算法來擷取概念並建模分享過程；HMC-Capsule 使用膠囊網路（capsule network）將文件分類到階層式標籤；HiLAP-RL 將 HTC 表述為馬可夫決策過程，透過深度強化學習學習標籤指派策略；HTCInfoMax 利用文本—標籤互資訊最大化演算法與標籤先驗匹配策略來捕捉標籤間的階層資訊；HiAGM 引入兩種結構編碼器（Tree-LSTM 與 GCN）以「由上而下」與「由下而上」兩種方式建模階層標籤；HiMatch 提出一個階層感知的標籤語意匹配網路，以階層感知方式學習文本—標籤語意匹配關係；HVHMC 則引入鬆耦合圖卷積神經網路作為表示元件，同時捕捉垂直與水平的類別依賴關係。儘管上述方法在一定程度上取得成功，但大多數仍受「標籤不一致」問題所困擾。</p>
+
+    <p>值得一提的是，先前有兩項工作同樣採用序列到序列（seq2seq）範式來處理 HTC 任務：其一是 SGM，其二是 Risch 等人（2020）的研究。然而，這兩項工作皆僅限於單路徑場景，無法處理多路徑情況；此外，由於這兩種方法在生成階層式標籤序列時是不受控制的，因此同樣會遭遇「標籤不一致」的問題。</p>
+  </section>
+
+  <!-- 5 CONCLUSION -->
+  <section class="chap" id="s5">
+    <h2><span class="num">5</span>結論</h2>
+    <p>本文提出 Seq2Tree 方法，用以解決既有 HTC 方法中「標籤不一致」的侷限。Seq2Tree 將 HTC 表述為序列生成問題，並採用以 T5 為基礎的 seq2seq 架構，為每份文件生成 DFS 風格的標籤序列。透過這種簡單卻有效的方式，Seq2Tree 能夠捕捉分類體系的結構資訊，並藉由帶動態詞表的受限解碼策略，確保生成標籤的一致性。三個基準資料集上的實驗結果，證實了 Seq2Tree 的有效性。</p>
+  </section>
+
+  <!-- REFERENCES -->
+  <section class="chap" id="refs">
+    <h2><span class="num">§</span>參考文獻（節錄）</h2>
+    <p class="original">以下為原文參考文獻列表之整理，完整 24 篇文獻資訊請參見原始 PDF。</p>
+    <ol class="refs">
+      <li>Aly, Remus &amp; Biemann. 2019. Hierarchical multi-label classification of text with capsule networks. <i>ACL Student Research Workshop</i>.</li>
+      <li>Banerjee et al. 2019. Hierarchical transfer learning for multi-label text classification. <i>ACL</i>.</li>
+      <li>Chatterjee et al. 2021. Joint Learning of Hyperbolic Label Embeddings for Hierarchical Multi-label Classification. <i>EACL</i>.</li>
+      <li>Chen, Ma, Lin &amp; Yan. 2021. Hierarchy-aware Label Semantics Matching Network for Hierarchical Text Classification. <i>ACL-IJCNLP</i>.（即 HiMatch）</li>
+      <li>Deng et al. 2021. HTCInfoMax: A Global Model for Hierarchical Text Classification via Information Maximization. <i>NAACL</i>.</li>
+      <li>Mao, Tian, Han &amp; Ren. 2019. Hierarchical Text Classification with Reinforced Label Assignment. <i>EMNLP-IJCNLP</i>.（即 HiLAP-RL）</li>
+      <li>Raffel et al. 2020. Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer. <i>JMLR</i>.（即 T5）</li>
+      <li>Risch, Garda &amp; Krestel. 2020. Hierarchical document classification as a sequence generation task. <i>JCDL</i>.</li>
+      <li>Wang, Zhao, Liu, Chen, Zhang &amp; Wang. 2021. Concept-Based Label Embedding via Dynamic Routing for Hierarchical Text Classification. <i>ACL-IJCNLP</i>.</li>
+      <li>Yang, Sun, Li, Ma, Wu &amp; Wang. 2018. SGM: Sequence Generation Model for Multi-label Classification. <i>COLING</i>.</li>
+      <li>Zhou et al. 2020. Hierarchy-aware global model for hierarchical text classification. <i>ACL</i>.（即 HiAGM）</li>
+    </ol>
+  </section>
+
+</main>
+
+<a href="#abstract" id="topbtn" aria-label="回到頂端">↑</a>
+
+<script>
+  // Smooth scroll + active link highlighting
+  const links = Array.from(document.querySelectorAll('#toc a'));
+  const targets = links.map(a => document.querySelector(a.getAttribute('href')));
+
+  function onScroll(){
+    let idx = 0;
+    const scrollPos = window.scrollY + 120;
+    targets.forEach((t, i) => {
+      if(t && t.offsetTop <= scrollPos) idx = i;
+    });
+    links.forEach(l => l.classList.remove('active'));
+    links[idx].classList.add('active');
+
+    const topbtn = document.getElementById('topbtn');
+    if(window.scrollY > 400) topbtn.classList.add('show');
+    else topbtn.classList.remove('show');
+  }
+  window.addEventListener('scroll', onScroll);
+  onScroll();
+</script>
+
+</body>
+</html>
